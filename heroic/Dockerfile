@@ -9,11 +9,13 @@ RUN pacman -Syu --noconfirm && \
     pacman -S --noconfirm http-parser proton-cachyos proton-cachyos-slr cachyos/umu-launcher cachyos-gaming-applications  cachyos-gaming-meta && \
     pacman -Scc --noconfirm
 
+#RUN pacman -Rss heroic-laucher-bin
+
 # Baixa o pacote .pacman do Heroic, instala e limpa o cache
-RUN curl -LO https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.20.1/Heroic-2.20.1-linux-x64.pacman && \
-    pacman -U --noconfirm Heroic-2.20.1-linux-x64.pacman && \
-    rm Heroic-2.20.1-linux-x64.pacman && \
-    pacman -Scc --noconfirm
+#RUN curl -LO https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.20.1/Heroic-2.20.1-linux-x64.pacman && \
+#    pacman -U --noconfirm Heroic-2.20.1-linux-x64.pacman && \
+#    rm Heroic-2.20.1-linux-x64.pacman && \
+#    pacman -Scc --noconfirm
 
 COPY --chmod=777 scripts/startup.sh /opt/gow/startup.sh
 
