@@ -14,11 +14,9 @@
     "sway/workspaces",
     "sway/mode",
     "sway/scratchpad",
-    "custom/kitty"
+    "custom/kitty",
   ],
-  "modules-center": [
-    "sway/window"
-  ],
+  "modules-center": ["sway/window"],
   "modules-right": [
     "pulseaudio",
     "network",
@@ -26,36 +24,33 @@
     "memory",
     "temperature",
     "sway/language",
-    "custom/clock"
+    "custom/clock",
   ],
   "custom/kitty": {
     "format": "{} ",
     "tooltip": false,
-    "on-click": "kitty"
+    "on-click": "kitty",
   },
   "sway/mode": {
-    "format": "<span style=\"italic\">{}</span>"
+    "format": "<span style=\"italic\">{}</span>",
   },
   "sway/scratchpad": {
     "format": "{icon} {count}",
     "show-empty": false,
-    "format-icons": [
-      "",
-      ""
-    ],
+    "format-icons": ["", ""],
     "tooltip": true,
-    "tooltip-format": "{app}: {title}"
+    "tooltip-format": "{app}: {title}",
   },
   "idle_inhibitor": {
     "format": "{icon}",
     "format-icons": {
       "activated": "",
-      "deactivated": ""
-    }
+      "deactivated": "",
+    },
   },
   "tray": {
     // "icon-size": 21,
-    "spacing": 10
+    "spacing": 10,
   },
   "custom/clock": {
     // see: https://github.com/games-on-whales/wolf/issues/137
@@ -63,14 +58,14 @@
     "format": "  {}",
     "tooltip": false,
     "interval": 60,
-    "exec": "date +'%d %a %H:%M'"
+    "exec": "date +'%d %a %H:%M'",
   },
   "cpu": {
     "format": "{usage}% ",
-    "tooltip": false
+    "tooltip": false,
   },
   "memory": {
-    "format": "{}% "
+    "format": "{}% ",
   },
   "temperature": {
     // "thermal-zone": 2,
@@ -78,20 +73,15 @@
     "critical-threshold": 80,
     // "format-critical": "{temperatureC}°C {icon}",
     "format": "{temperatureC}°C",
-    "format-icons": [
-      "",
-      "",
-      ""
-    ]
+    "format-icons": ["", "", ""],
   },
   "network": {
-    // "interface": "wlp2*", // (Optional) To force the use of this interface
-    "format-wifi": "{essid} ({signalStrength}%) ",
-    "format-ethernet": "{ipaddr}/{cidr}",
+    "format-wifi": "{essid} ({signalStrength}%)  ",
+    "format-ethernet": "  {ipaddr}/{cidr}",
+    "format-linked": "{ifname} (No IP)  ",
+    "format-disconnected": "Desconectado ⚠",
+    "format-alt": "{ifname}: {ipaddr}/{cidr}",
     "tooltip-format": "{ifname} via {gwaddr}",
-    "format-linked": "{ifname} (No IP)",
-    "format-disconnected": "Disconnected ⚠",
-    "format-alt": "{ifname}: {ipaddr}/{cidr}"
   },
   "pulseaudio": {
     // "scroll-step": 1, // %, can be a float
@@ -108,11 +98,7 @@
       "phone": "",
       "portable": "",
       "car": "",
-      "default": [
-        "",
-        "",
-        ""
-      ]
-    }
-  }
+      "default": ["", "", ""],
+    },
+  },
 }

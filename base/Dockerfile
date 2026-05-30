@@ -25,7 +25,7 @@ RUN pacman -Syu --noconfirm && \
         mesa vulkan-mesa-layers \
         xorg-xdpyinfo \
         gamescope xorg-xwayland sway \
-        waybar ttf-font-awesome noto-fonts-cjk \
+        waybar ttf-font-awesome noto-fonts-cjk otf-font-awesome \
         pulseaudio sdl2 ncurses \
         kitty nano psmisc \
         mangohud lib32-mangohud \
