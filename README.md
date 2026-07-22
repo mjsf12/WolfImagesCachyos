@@ -111,6 +111,17 @@ This document explains how to configure `newImages` for running applications ins
 - Set `start_virtual_compositor = true` for GUI apps
 - `RUN_SWAY=1` in env enables Sway compositor inside container
 
+### XFCE Desktop Mode (Pegasus)
+- Set `RUN_XFCE=1` in env to start a minimal XFCE desktop (Thunar, terminal, mousepad, panel)
+- Useful for system configuration, installing games, or tweaking emulators
+- Resolution controlled by `GAMESCOPE_WIDTH` / `GAMESCOPE_HEIGHT` (default: 1920x1080)
+- Session ends when you log out of XFCE (sway stops along with the container)
+
+```toml
+# In Wolf config.toml
+env = [ 'RUN_XFCE=1' ]
+```
+
 ### Locale/Keyboard
 - Set `LANG`, `LANGUAGE`, `LC_ALL` for locale
 - Set `XKB_*` vars for keyboard layout (example: Brazilian ABNT2)
@@ -140,6 +151,14 @@ docker build -t gow/cachyos-heroic \
   NewImages/heroic
 ```
 
+The `pegasus` image inherits from `base` directly (not `heroic`) and includes all gaming frontends:
+
+```bash
+docker build -t gow/cachyos-pegasus \
+  --build-arg BASE_IMAGE=gow/cachyos-base \
+  NewImages/pegasus
+```
+
 ### Build All NewImages
 
 ```bash
@@ -149,6 +168,7 @@ docker build -t gow/cachyos-base NewImages/base
 # Apps
 docker build -t gow/cachyos-heroic --build-arg BASE_IMAGE=gow/cachyos-base NewImages/heroic
 docker build -t gow/cachyos-firefox --build-arg BASE_IMAGE=gow/cachyos-base NewImages/firefox
+docker build -t gow/cachyos-pegasus --build-arg BASE_IMAGE=gow/cachyos-base NewImages/pegasus
 ```
 
 ## Complete Workflow
@@ -157,14 +177,14 @@ docker build -t gow/cachyos-firefox --build-arg BASE_IMAGE=gow/cachyos-base NewI
 # 1. Build base
 docker build -t gow/cachyos-base NewImages/base
 
-# 2. Build your app
-docker build -t gow/cachyos-heroic --build-arg BASE_IMAGE=gow/cachyos-base NewImages/heroic
+# 2. Build pegasus (includes all gaming frontends + XFCE config mode)
+docker build -t gow/cachyos-pegasus --build-arg BASE_IMAGE=gow/cachyos-base NewImages/pegasus
 
 # 3. Use in Wolf config.toml
 [[profiles.apps]]
-    title = 'Heroic (CachyOS)'
+    title = 'Pegasus (CachyOS)'
     [profiles.apps.runner]
-    image = 'gow/cachyos-heroic'
+    image = 'gow/cachyos-pegasus'
     type = 'docker'
     ...
 ```

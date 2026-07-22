@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=gow/cachyos-heroic:latest
+ARG BASE_IMAGE=gow/cachyos-base:latest
 
 # hadolint ignore=DL3006
 FROM ${BASE_IMAGE}
@@ -29,7 +29,10 @@ RUN pacman -S --noconfirm \
         cemu-git \
         pcsx2-git \
         gsettings-desktop-schemas \
-        foot && \
+        foot http-parser proton-cachyos proton-cachyos-slr cachyos/umu-launcher cachyos-gaming-applications cachyos-gaming-meta \
+        xfce4-panel xfdesktop xfce4-settings xfce4-session \
+        xfce4-terminal thunar mousepad ristretto \
+        python python-pip yq && \
     pacman -Scc --noconfirm
 
 # Hooks falharam no build (sandbox de rede), compilar manualmente
@@ -43,7 +46,7 @@ COPY --chmod=777 scripts/startup.sh /opt/gow/startup.sh
 # BUILD:
 #   docker build -t gow/cachyos-base NewImages/base
 #   docker build -t gow/cachyos-heroic --build-arg BASE_IMAGE=gow/cachyos-base NewImages/heroic
-#   docker build -t gow/cachyos-pegasus --build-arg BASE_IMAGE=gow/cachyos-heroic NewImages/pegasus
+#   docker build -t gow/cachyos-pegasus --build-arg BASE_IMAGE=gow/cachyos-base NewImages/pegasus
 #
 # Wolf config.toml:
 #   [[profiles.apps]]
