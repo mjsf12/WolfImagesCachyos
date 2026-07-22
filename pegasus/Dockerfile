@@ -32,7 +32,8 @@ RUN pacman -S --noconfirm \
         foot http-parser proton-cachyos proton-cachyos-slr cachyos/umu-launcher cachyos-gaming-applications cachyos-gaming-meta \
         xfce4 xfce4-whiskermenu-plugin \
         mousepad ristretto \
-        python python-pip yq librsvg papirus-icon-theme shared-mime-info && \
+        python python-pip yq librsvg papirus-icon-theme shared-mime-info \
+        noto-fonts ttf-dejavu && \
     pacman -Scc --noconfirm
 
 # Hooks falharam no build (sandbox de rede), compilar manualmente
@@ -46,7 +47,8 @@ RUN mkdir -p /usr/lib/gdk-pixbuf-2.0/2.10.0; \
     gtk-update-icon-cache -f /usr/share/icons/ePapirus/ 2>/dev/null || true; \
     gtk-update-icon-cache -f /usr/share/icons/ePapirus-Dark/ 2>/dev/null || true; \
     update-desktop-database 2>/dev/null || true; \
-    update-mime-database /usr/share/mime 2>/dev/null || true
+    update-mime-database /usr/share/mime 2>/dev/null || true; \
+    fc-cache -f 2>/dev/null || true
 
 COPY --chmod=777 scripts/startup.sh /opt/gow/startup.sh
 
