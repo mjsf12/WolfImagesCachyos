@@ -36,8 +36,9 @@ RUN pacman -S --noconfirm \
     pacman -Scc --noconfirm
 
 # Hooks falharam no build (sandbox de rede), compilar manualmente
-RUN gdk-pixbuf-query-loaders --update-cache || \
-        sh -c 'gdk-pixbuf-query-loaders > /usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache'; \
+RUN mkdir -p /usr/lib/gdk-pixbuf-2.0/2.10.0; \
+    gdk-pixbuf-query-loaders --update-cache 2>/dev/null || \
+    gdk-pixbuf-query-loaders > /usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache; \
     glib-compile-schemas /usr/share/glib-2.0/schemas/ || true; \
     gtk-update-icon-cache -f /usr/share/icons/hicolor/ 2>/dev/null || true; \
     gtk-update-icon-cache -f /usr/share/icons/Papirus/ 2>/dev/null || true; \
@@ -45,8 +46,7 @@ RUN gdk-pixbuf-query-loaders --update-cache || \
     gtk-update-icon-cache -f /usr/share/icons/ePapirus/ 2>/dev/null || true; \
     gtk-update-icon-cache -f /usr/share/icons/ePapirus-Dark/ 2>/dev/null || true; \
     update-desktop-database 2>/dev/null || true; \
-    update-mime-database /usr/share/mime 2>/dev/null || true; \
-    test -f /usr/lib/gdk-pixbuf-2.0/*/loaders.cache && echo "gdk-pixbuf cache: OK"
+    update-mime-database /usr/share/mime 2>/dev/null || true
 
 COPY --chmod=777 scripts/startup.sh /opt/gow/startup.sh
 
