@@ -41,6 +41,22 @@ if [ "${RUN_XFCE}" = "1" ]; then
             "$XFCE_XFWM4_FILE"
     fi
 
+    # O xfce4-terminal nao usa a fonte monoespacada global por padrao.
+    # Migra as configuracoes nova (xfconf) e legada (terminalrc).
+    XFCE_TERMINAL_FILE="$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-terminal.xml"
+    if [ -f "$XFCE_TERMINAL_FILE" ]; then
+        sed -i \
+            's/value="Monospace 12"/value="Noto Sans Mono 12"/' \
+            "$XFCE_TERMINAL_FILE"
+    fi
+
+    XFCE_TERMINAL_RC="$HOME/.config/xfce4/terminal/terminalrc"
+    if [ -f "$XFCE_TERMINAL_RC" ]; then
+        sed -i \
+            's/^FontName=Monospace 12$/FontName=Noto Sans Mono 12/' \
+            "$XFCE_TERMINAL_RC"
+    fi
+
     REAL_WAYLAND_DISPLAY=$WAYLAND_DISPLAY
     unset WAYLAND_DISPLAY
 

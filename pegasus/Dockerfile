@@ -57,6 +57,7 @@ RUN mkdir -p /usr/lib/gdk-pixbuf-2.0/2.10.0; \
         /usr/share/xfwm4/defaults; \
     fc-cache -f
 
+COPY configs/xfce4-terminal.xml /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-terminal.xml
 COPY --chmod=777 scripts/startup.sh /opt/gow/startup.sh
 
 # ---------------------------------------------------------------------------
