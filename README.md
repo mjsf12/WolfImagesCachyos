@@ -112,10 +112,10 @@ This document explains how to configure `newImages` for running applications ins
 - `RUN_SWAY=1` in env enables Sway compositor inside container
 
 ### XFCE Desktop Mode (Pegasus)
-- Set `RUN_XFCE=1` in env to start a minimal XFCE desktop (Thunar, terminal, mousepad, panel)
+- Set `RUN_XFCE=1` in env to start a full XFCE desktop (Thunar, terminal, mousepad, panel, window manager)
+- Runs directly on the virtual compositor's XWayland — no Sway involved
 - Useful for system configuration, installing games, or tweaking emulators
-- Resolution controlled by `GAMESCOPE_WIDTH` / `GAMESCOPE_HEIGHT` (default: 1920x1080)
-- Session ends when you log out of XFCE (sway stops along with the container)
+- Session ends when you log out of XFCE
 
 ```toml
 # In Wolf config.toml
