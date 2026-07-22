@@ -12,37 +12,23 @@ fi
 if [ "${RUN_XFCE}" = "1" ]; then
     gow_log "[XFCE] Starting XFCE desktop session..."
 
-    export GAMESCOPE_WIDTH=${GAMESCOPE_WIDTH:-1920}
-    export GAMESCOPE_HEIGHT=${GAMESCOPE_HEIGHT:-1080}
-    export GAMESCOPE_REFRESH=${GAMESCOPE_REFRESH:-60}
-
-    export SWAYSOCK=${XDG_RUNTIME_DIR}/sway.socket
-    export SWAY_STOP_ON_APP_EXIT="yes"
+    export XDG_SESSION_TYPE=x11
     export XDG_CURRENT_DESKTOP=XFCE
     export XDG_SESSION_DESKTOP=xfce
-    export XDG_SESSION_TYPE=x11
     export GDK_BACKEND=x11
+    export DISPLAY=:0
+    export DESKTOP_SESSION=xfce
+    export QT_QPA_PLATFORM=xcb
+    export QT_AUTO_SCREEN_SCALE_FACTOR=1
+    export _JAVA_AWT_WM_NONREPARENTING=1
+    export MOZ_ENABLE_WAYLAND=0
 
+    REAL_WAYLAND_DISPLAY=$WAYLAND_DISPLAY
     unset WAYLAND_DISPLAY
 
-    mkdir -p "$HOME/.config/sway"
-    cp /cfg/sway/config "$HOME/.config/sway/config"
-    echo "output * resolution ${GAMESCOPE_WIDTH}x${GAMESCOPE_HEIGHT} position 0,0" >> "$HOME/.config/sway/config"
+    dbus-run-session -- bash -c \
+        "WAYLAND_DISPLAY=$REAL_WAYLAND_DISPLAY Xwayland :0 & sleep 2 && startxfce4"
 
-    cat >> "$HOME/.config/sway/config" << 'SWAYCONF'
-
-# XFCE desktop
-exec_always xfsettingsd
-exec_always xfce4-panel
-exec_always xfdesktop
-exec_always thunar --daemon
-
-bindsym $mod+Return exec xfce4-terminal
-
-exec xfce4-session --skip-window-manager && killall sway
-SWAYCONF
-
-    dbus-run-session -- sway --unsupported-gpu
     exit $?
 fi
 
