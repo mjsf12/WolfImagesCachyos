@@ -22,6 +22,7 @@ if [ "${RUN_XFCE}" = "1" ]; then
     export QT_AUTO_SCREEN_SCALE_FACTOR=1
     export _JAVA_AWT_WM_NONREPARENTING=1
     export MOZ_ENABLE_WAYLAND=0
+    export GTK_ICON_THEME_NAME=ePapirus-Dark
 
     REAL_WAYLAND_DISPLAY=$WAYLAND_DISPLAY
     unset WAYLAND_DISPLAY

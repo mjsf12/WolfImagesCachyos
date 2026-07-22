@@ -32,15 +32,21 @@ RUN pacman -S --noconfirm \
         foot http-parser proton-cachyos proton-cachyos-slr cachyos/umu-launcher cachyos-gaming-applications cachyos-gaming-meta \
         xfce4 xfce4-whiskermenu-plugin \
         mousepad ristretto \
-        python python-pip yq librsvg elementary-icon-theme && \
+        python python-pip yq librsvg papirus-icon-theme shared-mime-info && \
     pacman -Scc --noconfirm
 
 # Hooks falharam no build (sandbox de rede), compilar manualmente
-RUN gdk-pixbuf-query-loaders --update-cache 2>/dev/null || true; \
+RUN gdk-pixbuf-query-loaders --update-cache || \
+        sh -c 'gdk-pixbuf-query-loaders > /usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache'; \
     glib-compile-schemas /usr/share/glib-2.0/schemas/ || true; \
     gtk-update-icon-cache -f /usr/share/icons/hicolor/ 2>/dev/null || true; \
-    gtk-update-icon-cache -f /usr/share/icons/elementary/ 2>/dev/null || true; \
-    update-desktop-database 2>/dev/null || true
+    gtk-update-icon-cache -f /usr/share/icons/Papirus/ 2>/dev/null || true; \
+    gtk-update-icon-cache -f /usr/share/icons/Papirus-Dark/ 2>/dev/null || true; \
+    gtk-update-icon-cache -f /usr/share/icons/ePapirus/ 2>/dev/null || true; \
+    gtk-update-icon-cache -f /usr/share/icons/ePapirus-Dark/ 2>/dev/null || true; \
+    update-desktop-database 2>/dev/null || true; \
+    update-mime-database /usr/share/mime 2>/dev/null || true; \
+    test -f /usr/lib/gdk-pixbuf-2.0/*/loaders.cache && echo "gdk-pixbuf cache: OK"
 
 COPY --chmod=777 scripts/startup.sh /opt/gow/startup.sh
 
