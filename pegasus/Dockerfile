@@ -5,13 +5,16 @@ FROM ${BASE_IMAGE}
 # Configure Chaotic-AUR (prioridade baixa, adicionado ao final do pacman.conf)
 RUN mkdir -p /tmp/nohooks && \
     pacman-key --init && \
-    pacman-key --recv-key 3056513887B78AEB --keyserver keyserver.ubuntu.com && \
-    pacman-key --lsign-key 3056513887B78AEB && \
+    curl -fsSL --retry 3 --connect-timeout 15 \
+        'https://raw.githubusercontent.com/chaotic-aur/keyring/master/chaotic.gpg' \
+        -o /tmp/chaotic.gpg && \
+    pacman-key --add /tmp/chaotic.gpg && \
+    pacman-key --lsign-key EF925EA60F33D0CB85C44AD13056513887B78AEB && \
     pacman -U --noconfirm --hookdir /tmp/nohooks 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst' && \
     pacman -U --noconfirm --hookdir /tmp/nohooks 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst' && \
+    pacman-key --populate chaotic && \
+    rm -f /tmp/chaotic.gpg && \
     echo -e "\n[chaotic-aur]\nInclude = /etc/pacman.d/chaotic-mirrorlist" >> /etc/pacman.conf && \
-    pacman-key --recv-key 349BC7808577C592 --keyserver keyserver.ubuntu.com && \
-    pacman-key --lsign-key 349BC7808577C592 && \
     pacman -Syyuu --noconfirm --hookdir /tmp/nohooks
 
 RUN pacman -S --noconfirm \
@@ -33,7 +36,7 @@ RUN pacman -S --noconfirm \
         xfce4 xfce4-whiskermenu-plugin \
         mousepad ristretto \
         python python-pip yq librsvg papirus-icon-theme shared-mime-info \
-        noto-fonts ttf-dejavu && \
+        ttf-dejavu && \
     pacman -Scc --noconfirm
 
 # Hooks falharam no build (sandbox de rede), compilar manualmente
@@ -49,11 +52,11 @@ RUN mkdir -p /usr/lib/gdk-pixbuf-2.0/2.10.0; \
     update-desktop-database 2>/dev/null || true; \
     update-mime-database /usr/share/mime 2>/dev/null || true; \
     sed -i \
-        -e 's/value="Sans 10"/value="Noto Sans 10"/' \
-        -e 's/value="Monospace 10"/value="Noto Sans Mono 10"/' \
+        -e 's/value="Sans 10"/value="DejaVu Sans 10"/' \
+        -e 's/value="Monospace 10"/value="DejaVu Sans Mono 10"/' \
         /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml; \
     sed -i \
-        's/^title_font=Sans Bold 9$/title_font=Noto Sans Bold 9/' \
+        's/^title_font=Sans Bold 9$/title_font=DejaVu Sans Bold 9/' \
         /usr/share/xfwm4/defaults; \
     fc-cache -f
 

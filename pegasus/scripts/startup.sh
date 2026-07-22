@@ -24,20 +24,28 @@ if [ "${RUN_XFCE}" = "1" ]; then
     export MOZ_ENABLE_WAYLAND=0
     export GTK_ICON_THEME_NAME=ePapirus-Dark
 
-    # Imagens antigas podem ter persistido os aliases genericos do XFCE.
-    # Migra somente esses valores; uma fonte escolhida pelo usuario e preservada.
+    # Atualiza caches persistidos e registra a resolucao real para diagnostico.
+    fc-cache -f >/dev/null
+    gow_log "[XFCE] sans-serif: $(fc-match -f '%{family[0]}' sans-serif)"
+    gow_log "[XFCE] monospace: $(fc-match -f '%{family[0]}' monospace)"
+
+    # Migra somente os aliases genericos e o Noto definido por imagens antigas.
+    # Uma fonte diferente escolhida pelo usuario e preservada.
     XFCE_XSETTINGS_FILE="$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml"
     if [ -f "$XFCE_XSETTINGS_FILE" ]; then
         sed -i \
-            -e 's/value="Sans 10"/value="Noto Sans 10"/' \
-            -e 's/value="Monospace 10"/value="Noto Sans Mono 10"/' \
+            -e 's/value="Sans 10"/value="DejaVu Sans 10"/' \
+            -e 's/value="Noto Sans 10"/value="DejaVu Sans 10"/' \
+            -e 's/value="Monospace 10"/value="DejaVu Sans Mono 10"/' \
+            -e 's/value="Noto Sans Mono 10"/value="DejaVu Sans Mono 10"/' \
             "$XFCE_XSETTINGS_FILE"
     fi
 
     XFCE_XFWM4_FILE="$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml"
     if [ -f "$XFCE_XFWM4_FILE" ]; then
         sed -i \
-            's/value="Sans Bold 9"/value="Noto Sans Bold 9"/' \
+            -e 's/value="Sans Bold 9"/value="DejaVu Sans Bold 9"/' \
+            -e 's/value="Noto Sans Bold 9"/value="DejaVu Sans Bold 9"/' \
             "$XFCE_XFWM4_FILE"
     fi
 
@@ -46,14 +54,16 @@ if [ "${RUN_XFCE}" = "1" ]; then
     XFCE_TERMINAL_FILE="$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-terminal.xml"
     if [ -f "$XFCE_TERMINAL_FILE" ]; then
         sed -i \
-            's/value="Monospace 12"/value="Noto Sans Mono 12"/' \
+            -e 's/value="Monospace 12"/value="DejaVu Sans Mono 12"/' \
+            -e 's/value="Noto Sans Mono 12"/value="DejaVu Sans Mono 12"/' \
             "$XFCE_TERMINAL_FILE"
     fi
 
     XFCE_TERMINAL_RC="$HOME/.config/xfce4/terminal/terminalrc"
     if [ -f "$XFCE_TERMINAL_RC" ]; then
         sed -i \
-            's/^FontName=Monospace 12$/FontName=Noto Sans Mono 12/' \
+            -e 's/^FontName=Monospace 12$/FontName=DejaVu Sans Mono 12/' \
+            -e 's/^FontName=Noto Sans Mono 12$/FontName=DejaVu Sans Mono 12/' \
             "$XFCE_TERMINAL_RC"
     fi
 

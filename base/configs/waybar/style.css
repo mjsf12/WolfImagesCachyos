@@ -68,7 +68,7 @@
 #waybar {
     background: @bg;
     color: @light;
-    font-family: "Cantarell", "Font Awesome 7 Free";
+    font-family: "DejaVu Sans", "Font Awesome 7 Free";
     font-size: 12px;
     font-weight: bold;
 }
