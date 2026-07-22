@@ -30,14 +30,16 @@ RUN pacman -S --noconfirm \
         pcsx2-git \
         gsettings-desktop-schemas \
         foot http-parser proton-cachyos proton-cachyos-slr cachyos/umu-launcher cachyos-gaming-applications cachyos-gaming-meta \
-        xfce4-panel xfdesktop xfce4-settings xfce4-session \
-        xfce4-terminal thunar mousepad ristretto \
-        python python-pip yq librsvg && \
+        xfce4 xfce4-whiskermenu-plugin \
+        mousepad ristretto \
+        python python-pip yq librsvg elementary-icon-theme && \
     pacman -Scc --noconfirm
 
 # Hooks falharam no build (sandbox de rede), compilar manualmente
-RUN glib-compile-schemas /usr/share/glib-2.0/schemas/ || true; \
+RUN gdk-pixbuf-query-loaders --update-cache 2>/dev/null || true; \
+    glib-compile-schemas /usr/share/glib-2.0/schemas/ || true; \
     gtk-update-icon-cache -f /usr/share/icons/hicolor/ 2>/dev/null || true; \
+    gtk-update-icon-cache -f /usr/share/icons/elementary/ 2>/dev/null || true; \
     update-desktop-database 2>/dev/null || true
 
 COPY --chmod=777 scripts/startup.sh /opt/gow/startup.sh
