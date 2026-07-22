@@ -32,7 +32,7 @@ RUN pacman -S --noconfirm \
         foot http-parser proton-cachyos proton-cachyos-slr cachyos/umu-launcher cachyos-gaming-applications cachyos-gaming-meta \
         xfce4-panel xfdesktop xfce4-settings xfce4-session \
         xfce4-terminal thunar mousepad ristretto \
-        python python-pip yq && \
+        python python-pip yq librsvg && \
     pacman -Scc --noconfirm
 
 # Hooks falharam no build (sandbox de rede), compilar manualmente

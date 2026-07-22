@@ -13,8 +13,11 @@ if [ "${RUN_XFCE}" = "1" ]; then
     gow_log "[XFCE] Starting XFCE desktop session..."
 
     export XDG_SESSION_TYPE=x11
+    export GDK_BACKEND=x11
     export XDG_CURRENT_DESKTOP=XFCE
     export XDG_SESSION_DESKTOP=xfce
+
+    unset WAYLAND_DISPLAY
 
     dbus-run-session -- xfce4-session
     exit $?
