@@ -48,7 +48,14 @@ RUN mkdir -p /usr/lib/gdk-pixbuf-2.0/2.10.0; \
     gtk-update-icon-cache -f /usr/share/icons/ePapirus-Dark/ 2>/dev/null || true; \
     update-desktop-database 2>/dev/null || true; \
     update-mime-database /usr/share/mime 2>/dev/null || true; \
-    fc-cache -f 2>/dev/null || true
+    sed -i \
+        -e 's/value="Sans 10"/value="Noto Sans 10"/' \
+        -e 's/value="Monospace 10"/value="Noto Sans Mono 10"/' \
+        /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml; \
+    sed -i \
+        's/^title_font=Sans Bold 9$/title_font=Noto Sans Bold 9/' \
+        /usr/share/xfwm4/defaults; \
+    fc-cache -f
 
 COPY --chmod=777 scripts/startup.sh /opt/gow/startup.sh
 

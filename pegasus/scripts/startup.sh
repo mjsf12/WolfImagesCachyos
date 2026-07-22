@@ -24,6 +24,23 @@ if [ "${RUN_XFCE}" = "1" ]; then
     export MOZ_ENABLE_WAYLAND=0
     export GTK_ICON_THEME_NAME=ePapirus-Dark
 
+    # Imagens antigas podem ter persistido os aliases genericos do XFCE.
+    # Migra somente esses valores; uma fonte escolhida pelo usuario e preservada.
+    XFCE_XSETTINGS_FILE="$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml"
+    if [ -f "$XFCE_XSETTINGS_FILE" ]; then
+        sed -i \
+            -e 's/value="Sans 10"/value="Noto Sans 10"/' \
+            -e 's/value="Monospace 10"/value="Noto Sans Mono 10"/' \
+            "$XFCE_XSETTINGS_FILE"
+    fi
+
+    XFCE_XFWM4_FILE="$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml"
+    if [ -f "$XFCE_XFWM4_FILE" ]; then
+        sed -i \
+            's/value="Sans Bold 9"/value="Noto Sans Bold 9"/' \
+            "$XFCE_XFWM4_FILE"
+    fi
+
     REAL_WAYLAND_DISPLAY=$WAYLAND_DISPLAY
     unset WAYLAND_DISPLAY
 
