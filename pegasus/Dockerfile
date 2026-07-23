@@ -38,7 +38,7 @@ RUN pacman -S --noconfirm \
         foot http-parser proton-cachyos proton-cachyos-slr cachyos/umu-launcher cachyos-gaming-applications cachyos-gaming-meta \
         xfce4 xfce4-whiskermenu-plugin \
         mousepad ristretto \
-        python python-pip yq librsvg papirus-icon-theme shared-mime-info \
+        python python-pip python-protobuf yq librsvg papirus-icon-theme shared-mime-info \
         ttf-dejavu && \
     pacman -Scc --noconfirm
 
