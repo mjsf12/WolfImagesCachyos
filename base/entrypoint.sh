@@ -52,6 +52,35 @@ if [ "$(id -u)" = "0" ]; then
         gow_log "DONE"
     fi
 
+    # ---- Inicializa o D-Bus de sistema quando solicitado pela imagem derivada ----
+    if [ "${START_SYSTEM_DBUS:-0}" = "1" ]; then
+        gow_log "**** Starting system D-Bus ****"
+
+        mkdir -p /run/dbus
+        dbus-uuidgen --ensure=/etc/machine-id
+
+        if ! dbus-send \
+            --system \
+            --dest=org.freedesktop.DBus \
+            --type=method_call \
+            --print-reply \
+            /org/freedesktop/DBus \
+            org.freedesktop.DBus.ListNames >/dev/null 2>&1; then
+            rm -f /run/dbus/pid /run/dbus/system_bus_socket
+            dbus-daemon --system --fork
+        fi
+
+        dbus-send \
+            --system \
+            --dest=org.freedesktop.DBus \
+            --type=method_call \
+            --print-reply \
+            /org/freedesktop/DBus \
+            org.freedesktop.DBus.ListNames >/dev/null
+
+        gow_log "System D-Bus ready"
+    fi
+
     # ---- Configura grupos dos dispositivos ----
     gow_log "**** Configure devices ****"
     /opt/gow/ensure-groups ${GOW_REQUIRED_DEVICES:-/dev/uinput /dev/input/event*}

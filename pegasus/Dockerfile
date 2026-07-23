@@ -2,6 +2,9 @@ ARG BASE_IMAGE=gow/cachyos-base:latest
 
 # hadolint ignore=DL3006
 FROM ${BASE_IMAGE}
+
+ENV START_SYSTEM_DBUS=1
+
 # Configure Chaotic-AUR (prioridade baixa, adicionado ao final do pacman.conf)
 RUN mkdir -p /tmp/nohooks && \
     pacman-key --init && \
