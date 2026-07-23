@@ -3,8 +3,12 @@ FROM cachyos/cachyos-v4:latest
 
 LABEL maintainer="seu_nome@email.com"
 
-# Habilita multilib para pacotes lib32-* ANTES do primeiro pacman
-RUN echo -e "[multilib]\nInclude = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
+# A imagem do CachyOS normalmente já possui multilib. Evita registrar o mesmo
+# repositório duas vezes e libera os hooks do pacman no sandbox do Docker.
+RUN grep -q '^\[multilib\]' /etc/pacman.conf || \
+        printf '\n[multilib]\nInclude = /etc/pacman.d/mirrorlist\n' >> /etc/pacman.conf; \
+    grep -q '^DisableSandboxNetwork' /etc/pacman.conf || \
+        sed -i '/^\[options\]/a DisableSandboxNetwork' /etc/pacman.conf
 
 ENV \
     PUID=1000 \
