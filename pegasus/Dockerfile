@@ -20,7 +20,8 @@ RUN mkdir -p /tmp/nohooks && \
     echo -e "\n[chaotic-aur]\nInclude = /etc/pacman.d/chaotic-mirrorlist" >> /etc/pacman.conf && \
     pacman -Syyuu --noconfirm --hookdir /tmp/nohooks
 
-RUN pacman -S --noconfirm \
+RUN pacman -Syyu --noconfirm && \
+    pacman -S --noconfirm --needed \
         pegasus-frontend-git \
         heroic-games-launcher-bin \
         lutris \
