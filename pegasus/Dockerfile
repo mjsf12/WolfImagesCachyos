@@ -35,6 +35,7 @@ RUN pacman -S --noconfirm \
         cemu-git \
         pcsx2-git \
         gsettings-desktop-schemas \
+        gamemode lib32-gamemode \
         foot http-parser proton-cachyos proton-cachyos-slr cachyos/umu-launcher cachyos-gaming-applications cachyos-gaming-meta \
         xfce4 xfce4-whiskermenu-plugin \
         mousepad ristretto \
