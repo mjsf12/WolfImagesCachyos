@@ -132,7 +132,9 @@ The build follows a hierarchical structure:
 
 ```
 base (NewImages/base)
-   └── app (NewImages/heroic, NewImages/firefox, etc.)
+   ├── app (NewImages/heroic, NewImages/firefox, etc.)
+   └── pegasus
+       └── opengamepadui
 ```
 
 ### Build Base Image First
@@ -159,6 +161,16 @@ docker build -t gow/cachyos-pegasus \
   NewImages/pegasus
 ```
 
+The `opengamepadui` image inherits every Pegasus package, installs
+`opengamepadui-bin` and all of its optional dependencies through `paru`, and
+starts the official Gamescope session:
+
+```bash
+docker build -t gow/cachyos-opengamepadui \
+  --build-arg PEGASUS_IMAGE=gow/cachyos-pegasus \
+  NewImages/opengamepadui
+```
+
 ### Build All NewImages
 
 ```bash
@@ -169,6 +181,7 @@ docker build -t gow/cachyos-base NewImages/base
 docker build -t gow/cachyos-heroic --build-arg BASE_IMAGE=gow/cachyos-base NewImages/heroic
 docker build -t gow/cachyos-firefox --build-arg BASE_IMAGE=gow/cachyos-base NewImages/firefox
 docker build -t gow/cachyos-pegasus --build-arg BASE_IMAGE=gow/cachyos-base NewImages/pegasus
+docker build -t gow/cachyos-opengamepadui --build-arg PEGASUS_IMAGE=gow/cachyos-pegasus NewImages/opengamepadui
 ```
 
 ## Complete Workflow
@@ -188,6 +201,46 @@ docker build -t gow/cachyos-pegasus --build-arg BASE_IMAGE=gow/cachyos-base NewI
     type = 'docker'
     ...
 ```
+
+### OpenGamepadUI with Gamescope
+
+OpenGamepadUI uses Gamescope by default; do not set `RUN_SWAY` for this
+profile. `/dev/uinput` is required by InputPlumber for virtual controllers:
+
+```toml
+[[profiles.apps]]
+    icon_png_path = ''
+    start_virtual_compositor = true
+    title = 'OpenGamepadUI (CachyOS)'
+
+    [profiles.apps.runner]
+    base_create_json = '''{
+  "HostConfig": {
+    "IpcMode": "host",
+    "Privileged": false,
+    "CapAdd": ["NET_RAW", "MKNOD", "NET_ADMIN", "SYS_NICE"],
+    "Devices": [{
+      "PathOnHost": "/dev/uinput",
+      "PathInContainer": "/dev/uinput",
+      "CgroupPermissions": "rwm"
+    }],
+    "DeviceCgroupRules": ["c 10:223 rmw", "c 13:* rmw", "c 244:* rmw"]
+  }
+}
+'''
+    devices = [ '/dev/uinput:/dev/uinput:rwm' ]
+    env = [ 'GOW_REQUIRED_DEVICES=/dev/uinput /dev/input/* /dev/dri/* /dev/nvidia*' ]
+    image = 'gow/cachyos-opengamepadui'
+    mounts = []
+    name = 'CachyosOpenGamepadUI'
+    ports = []
+    type = 'docker'
+```
+
+Useful variables are `GAMESCOPE_WIDTH`, `GAMESCOPE_HEIGHT`,
+`GAMESCOPE_INTERNAL_WIDTH`, `GAMESCOPE_INTERNAL_HEIGHT`, and
+`OPENGAMEPADUI_STARTUP_FLAGS`. The inherited `RUN_XFCE=1` maintenance mode
+remains available.
 
 ---
 

@@ -145,6 +145,20 @@ if [ "$(id -u)" = "0" ]; then
         fi
     fi
 
+    # ---- Executa hooks de inicialização das imagens derivadas ----
+    # Os hooks rodam como root depois do D-Bus, dispositivos e GPU estarem
+    # configurados, mas antes do startup da aplicação trocar para o usuário.
+    if compgen -G "/etc/cont-init.d/*" >/dev/null; then
+        gow_log "**** Running container init hooks ****"
+        for init_script in /etc/cont-init.d/*; do
+            if [ -f "${init_script}" ] && [ -x "${init_script}" ]; then
+                gow_log "Running ${init_script}"
+                "${init_script}"
+            fi
+        done
+        gow_log "DONE"
+    fi
+
 fi
 
 # Se um comando foi passado como argumento (ex: CMD ["/bin/bash"]), executa como UNAME

@@ -132,7 +132,9 @@ O build segue uma estrutura hierárquica:
 
 ```
 base (NewImages/base)
-   └── app (NewImages/heroic, NewImages/firefox, etc.)
+   ├── app (NewImages/heroic, NewImages/firefox, etc.)
+   └── pegasus
+       └── opengamepadui
 ```
 
 ### Build da Imagem Base Primeiro
@@ -159,6 +161,16 @@ docker build -t gow/cachyos-pegasus \
   NewImages/pegasus
 ```
 
+A imagem `opengamepadui` herda todos os pacotes do Pegasus, instala
+`opengamepadui-bin` com todas as dependências opcionais via `paru` e inicia a
+sessão oficial sobre Gamescope:
+
+```bash
+docker build -t gow/cachyos-opengamepadui \
+  --build-arg PEGASUS_IMAGE=gow/cachyos-pegasus \
+  NewImages/opengamepadui
+```
+
 ### Build de Todos os NewImages
 
 ```bash
@@ -169,6 +181,7 @@ docker build -t gow/cachyos-base NewImages/base
 docker build -t gow/cachyos-heroic --build-arg BASE_IMAGE=gow/cachyos-base NewImages/heroic
 docker build -t gow/cachyos-firefox --build-arg BASE_IMAGE=gow/cachyos-base NewImages/firefox
 docker build -t gow/cachyos-pegasus --build-arg BASE_IMAGE=gow/cachyos-base NewImages/pegasus
+docker build -t gow/cachyos-opengamepadui --build-arg PEGASUS_IMAGE=gow/cachyos-pegasus NewImages/opengamepadui
 ```
 
 ## Fluxo Completo
@@ -188,6 +201,46 @@ docker build -t gow/cachyos-pegasus --build-arg BASE_IMAGE=gow/cachyos-base NewI
     type = 'docker'
     ...
 ```
+
+### OpenGamepadUI com Gamescope
+
+O OpenGamepadUI usa Gamescope por padrão; não defina `RUN_SWAY` nesse perfil.
+O `/dev/uinput` é necessário para os controles virtuais do InputPlumber:
+
+```toml
+[[profiles.apps]]
+    icon_png_path = ''
+    start_virtual_compositor = true
+    title = 'OpenGamepadUI (CachyOS)'
+
+    [profiles.apps.runner]
+    base_create_json = '''{
+  "HostConfig": {
+    "IpcMode": "host",
+    "Privileged": false,
+    "CapAdd": ["NET_RAW", "MKNOD", "NET_ADMIN", "SYS_NICE"],
+    "Devices": [{
+      "PathOnHost": "/dev/uinput",
+      "PathInContainer": "/dev/uinput",
+      "CgroupPermissions": "rwm"
+    }],
+    "DeviceCgroupRules": ["c 10:223 rmw", "c 13:* rmw", "c 244:* rmw"]
+  }
+}
+'''
+    devices = [ '/dev/uinput:/dev/uinput:rwm' ]
+    env = [ 'GOW_REQUIRED_DEVICES=/dev/uinput /dev/input/* /dev/dri/* /dev/nvidia*' ]
+    image = 'gow/cachyos-opengamepadui'
+    mounts = []
+    name = 'CachyosOpenGamepadUI'
+    ports = []
+    type = 'docker'
+```
+
+Variáveis úteis: `GAMESCOPE_WIDTH`, `GAMESCOPE_HEIGHT`,
+`GAMESCOPE_INTERNAL_WIDTH`, `GAMESCOPE_INTERNAL_HEIGHT` e
+`OPENGAMEPADUI_STARTUP_FLAGS`. O modo de manutenção `RUN_XFCE=1` continua
+disponível porque a imagem herda do Pegasus.
 
 ---
 

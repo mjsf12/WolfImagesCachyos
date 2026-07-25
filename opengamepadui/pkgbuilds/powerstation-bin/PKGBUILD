@@ -1,0 +1,19 @@
+pkgname=powerstation-bin
+_pkgbase=powerstation
+pkgver=0.8.1
+pkgrel=1
+pkgdesc="Open source performance daemon with a D-Bus interface"
+arch=('x86_64')
+url="https://github.com/ShadowBlip/PowerStation"
+license=('GPL')
+depends=('dbus' 'pciutils')
+provides=('powerstation')
+conflicts=('powerstation-git')
+source=(
+  "powerstation-v${pkgver}.tar.gz::https://github.com/ShadowBlip/PowerStation/releases/download/v${pkgver}/powerstation-x86_64.tar.gz"
+)
+sha256sums=('71e920da0d4c28e804de74546ba971f951f928b228761ab3e24ba1b2b8842107')
+
+package() {
+  cp -a "${srcdir}/${_pkgbase}/usr" "${pkgdir}/usr"
+}
