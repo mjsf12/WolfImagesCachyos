@@ -45,6 +45,10 @@ RUN sed -i \
     's|^Exec=.*opengamepadui.*|Exec=/usr/bin/opengamepadui %u|' \
     /usr/share/applications/opengamepadui.desktop
 
+# Evita recursão de diálogos Zenity quando a camada Vulkan Gamescope WSI
+# decide continuar com um swapchain X11 normal.
+ENV GAMESCOPE_ZENITY_DISABLE=1
+
 # Preserva o modo de manutenção XFCE herdado do Pegasus.
 RUN mv /opt/gow/startup.sh /opt/gow/startup-pegasus.sh
 

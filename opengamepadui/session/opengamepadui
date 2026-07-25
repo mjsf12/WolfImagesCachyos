@@ -2,6 +2,7 @@
 
 # Adaptado da sessão oficial ShadowBlip/OpenGamepadUI-session.
 CURSOR_FILE="${HOME}/.local/share/Steam/tenfoot/resource/images/cursors/arrow_right.png"
+export GAMESCOPE_ZENITY_DISABLE="${GAMESCOPE_ZENITY_DISABLE:-1}"
 
 # O wrapper /usr/bin/opengamepadui procura o Gamescope em /run/user/$UID.
 # O Wolf pode fornecer outro XDG_RUNTIME_DIR (por exemplo /run/user/wolf), o

@@ -57,6 +57,12 @@ export XDG_CURRENT_DESKTOP=gamescope
 export XDG_SESSION_DESKTOP=gamescope
 export DESKTOP_SESSION=gamescope
 
+# Se o hook Vulkan da camada Gamescope WSI falhar, ele tenta abrir um diálogo
+# com Zenity. Como o Zenity herda a mesma camada Vulkan, isso entra em recursão
+# e bloqueia o Godot antes de criar a janela principal. Gamescope 3.16 fornece
+# esta opção para seguir com o swapchain normal sem abrir o diálogo.
+export GAMESCOPE_ZENITY_DISABLE="${GAMESCOPE_ZENITY_DISABLE:-1}"
+
 # O launcher oficial configura isto no systemd --user. No container executamos
 # a sessão diretamente, então a variável deve ser herdada pelo D-Bus de usuário.
 export XDG_DESKTOP_PORTAL_DIR=""
