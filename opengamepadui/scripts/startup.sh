@@ -3,10 +3,32 @@ set -e
 
 source /opt/gow/bash-lib/utils.sh
 
+ensure_writable_dir() {
+    local directory="$1"
+    local probe
+
+    if ! mkdir -p "${directory}"; then
+        gow_log "FATAL: Could not create ${directory}"
+        gow_log "Fix the bind mount on the host with: chown -R 1000:1000 <host-directory>"
+        exit 1
+    fi
+
+    probe="${directory}/.gow-write-test.$$"
+    if ! touch "${probe}" 2>/dev/null; then
+        gow_log "FATAL: User $(id -u):$(id -g) cannot write to ${directory}"
+        gow_log "Fix the bind mount on the host with: chown -R 1000:1000 <host-directory>"
+        exit 1
+    fi
+    rm -f "${probe}"
+}
+
 # Mantém o desktop de manutenção exatamente como na imagem Pegasus.
 if [ "${RUN_XFCE:-0}" = "1" ]; then
     exec /opt/gow/startup-pegasus.sh
 fi
+
+ensure_writable_dir "${HOME}/.config/gamescope"
+ensure_writable_dir "${HOME}/.local/share/opengamepadui"
 
 if [ -n "${DISPLAY:-}" ]; then
     gow_log "Waiting for X Server ${DISPLAY} to be available"
@@ -34,5 +56,12 @@ export XDG_SESSION_TYPE=x11
 export XDG_CURRENT_DESKTOP=gamescope
 export XDG_SESSION_DESKTOP=gamescope
 export DESKTOP_SESSION=gamescope
+
+# O launcher oficial configura isto no systemd --user. No container executamos
+# a sessão diretamente, então a variável deve ser herdada pelo D-Bus de usuário.
+export XDG_DESKTOP_PORTAL_DIR=""
+
+# O script do ChimeraOS lê este arquivo antes de verificar sessões curtas.
+touch /tmp/chimeraos-short-session-tracker
 
 exec dbus-run-session -- "${session_runner}" opengamepadui

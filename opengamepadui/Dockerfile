@@ -7,7 +7,7 @@ FROM ${PEGASUS_IMAGE}
 ENV \
     START_SYSTEM_DBUS=1 \
     START_INPUTPLUMBER=1 \
-    START_POWERSTATION=1
+    START_POWERSTATION=0
 
 # paru é fornecido pelos repositórios já configurados na imagem CachyOS/Chaotic.
 # Os pacotes AUR são compilados por um usuário sem privilégios; sudo é usado

@@ -2,4 +2,10 @@
 
 # Adaptado da sessão oficial ShadowBlip/OpenGamepadUI-session.
 CURSOR_FILE="${HOME}/.local/share/Steam/tenfoot/resource/images/cursors/arrow_right.png"
-CLIENTCMD="opengamepadui ${OPENGAMEPADUI_STARTUP_FLAGS:-}"
+
+# O wrapper /usr/bin/opengamepadui procura o Gamescope em /run/user/$UID.
+# O Wolf pode fornecer outro XDG_RUNTIME_DIR (por exemplo /run/user/wolf), o
+# que faria o wrapper abrir um segundo Gamescope. A sessão já está dentro do
+# compositor correto, portanto executa diretamente o binário do frontend.
+OGUI_BIN="${OGUI_BIN:-/usr/share/opengamepadui/opengamepad-ui.$(uname -m)}"
+CLIENTCMD="${OGUI_BIN} ${OPENGAMEPADUI_STARTUP_FLAGS:-}"

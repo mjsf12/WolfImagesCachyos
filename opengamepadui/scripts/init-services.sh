@@ -35,6 +35,6 @@ if [ "${START_INPUTPLUMBER:-1}" = "1" ]; then
     start_daemon inputplumber inputplumber
 fi
 
-if [ "${START_POWERSTATION:-1}" = "1" ]; then
+if [ "${START_POWERSTATION:-0}" = "1" ]; then
     start_daemon powerstation powerstation
 fi

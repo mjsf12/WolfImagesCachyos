@@ -242,6 +242,12 @@ Useful variables are `GAMESCOPE_WIDTH`, `GAMESCOPE_HEIGHT`,
 `OPENGAMEPADUI_STARTUP_FLAGS`. The inherited `RUN_XFCE=1` maintenance mode
 remains available.
 
+Host directories mounted at `~/.config/gamescope` or
+`~/.local/share/opengamepadui` must belong to UID/GID `1000:1000`.
+PowerStation remains installed but is disabled by default because `/sys` is
+normally read-only in the container; set `START_POWERSTATION=1` only when the
+host provides compatible access.
+
 ---
 
 [README em Português](README_pt.md)

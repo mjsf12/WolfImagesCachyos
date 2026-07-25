@@ -242,6 +242,12 @@ Variáveis úteis: `GAMESCOPE_WIDTH`, `GAMESCOPE_HEIGHT`,
 `OPENGAMEPADUI_STARTUP_FLAGS`. O modo de manutenção `RUN_XFCE=1` continua
 disponível porque a imagem herda do Pegasus.
 
+Diretórios do host montados em `~/.config/gamescope` ou
+`~/.local/share/opengamepadui` precisam pertencer ao UID/GID `1000:1000`. O
+PowerStation fica instalado, mas desligado por padrão porque `/sys` normalmente
+é somente leitura no container; use `START_POWERSTATION=1` somente quando o
+host fornecer acesso compatível.
+
 ---
 
 [English README](README.md)
