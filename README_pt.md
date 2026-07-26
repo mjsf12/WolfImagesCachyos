@@ -205,7 +205,88 @@ docker build -t gow/cachyos-pegasus --build-arg BASE_IMAGE=gow/cachyos-base NewI
 ### OpenGamepadUI com Gamescope
 
 O OpenGamepadUI usa Gamescope por padrão; não defina `RUN_SWAY` nesse perfil.
-O `/dev/uinput` é necessário para os controles virtuais do InputPlumber:
+A imagem instala uma compilação corrigida do InputPlumber 0.78.0 que:
+
+- reconhece os controles virtuais `Wolf X-Box One`, `Wolf PS5`,
+  `Wolf DualSense`, `Wolf Nintendo` e o sensor de movimento;
+- cria o observador de `/dev/input` antes que o Wolf conecte o controle;
+- entrega o controle ao OpenGamepadUI por D-Bus sem aplicar `EVIOCGRAB`, de
+  forma que o mesmo controle continue disponível quando o jogo abrir.
+
+Compile a imagem com:
+
+```bash
+docker buildx build \
+  --load \
+  --progress=plain \
+  --build-arg PEGASUS_IMAGE=gow/cachyos-pegasus:latest \
+  -t gow/cachyos-opengamepadui:latest \
+  ./opengamepadui
+```
+
+#### Preparação do host
+
+Crie `/etc/udev/rules.d/85-wolf-virtual-inputs.rules`. As duas variantes de
+nome do controle Sony são mantidas porque versões diferentes do Wolf usam
+`PS5` ou `DualSense`:
+
+```udev
+# Permite ao Wolf criar controles virtuais.
+KERNEL=="uinput", SUBSYSTEM=="misc", MODE="0660", GROUP="input", OPTIONS+="static_node=uinput", TAG+="uaccess"
+
+# Necessário para emulação de DualSense.
+KERNEL=="uhid", GROUP="input", MODE="0660", TAG+="uaccess"
+
+# Controles virtuais criados pelo Wolf.
+KERNEL=="hidraw*", ATTRS{name}=="Wolf PS5 (virtual) pad", GROUP="root", MODE="0660", ENV{ID_SEAT}="seat9"
+KERNEL=="hidraw*", ATTRS{name}=="Wolf DualSense (virtual) pad", GROUP="root", MODE="0660", ENV{ID_SEAT}="seat9"
+SUBSYSTEMS=="input", ATTRS{name}=="Wolf X-Box One (virtual) pad", GROUP="root", MODE="0660", ENV{ID_SEAT}="seat9"
+SUBSYSTEMS=="input", ATTRS{name}=="Wolf PS5 (virtual) pad", GROUP="root", MODE="0660", ENV{ID_SEAT}="seat9"
+SUBSYSTEMS=="input", ATTRS{name}=="Wolf DualSense (virtual) pad", GROUP="root", MODE="0660", ENV{ID_SEAT}="seat9"
+SUBSYSTEMS=="input", ATTRS{name}=="Wolf gamepad (virtual) motion sensors", GROUP="root", MODE="0660", ENV{ID_SEAT}="seat9"
+SUBSYSTEMS=="input", ATTRS{name}=="Wolf Nintendo (virtual) pad", GROUP="root", MODE="0660", ENV{ID_SEAT}="seat9"
+```
+
+Recarregue as regras e reinicie o container do Wolf:
+
+```bash
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+docker restart wolf
+ls -l /dev/uinput /dev/uhid
+```
+
+Na chamada do próprio container `wolf`, estes argumentos são necessários para
+suporte completo a controles, incluindo DualSense. Eles são os mesmos usados
+pelo exemplo oficial:
+
+```bash
+--device /dev/uinput \
+--device /dev/uhid \
+-v /dev/:/dev/:rw \
+-v /run/udev:/run/udev:rw \
+--device-cgroup-rule 'c 13:* rmw'
+```
+
+Em Compose, o equivalente é:
+
+```yaml
+services:
+  wolf:
+    volumes:
+      - /dev/:/dev/:rw
+      - /run/udev:/run/udev:rw
+    devices:
+      - /dev/uinput
+      - /dev/uhid
+    device_cgroup_rules:
+      - 'c 13:* rmw'
+```
+
+#### Perfil do aplicativo no Wolf
+
+Use os campos abaixo no perfil OpenGamepadUI. Preserve os mounts de jogos e
+launchers que já existirem no seu perfil:
 
 ```toml
 [[profiles.apps]]
@@ -218,24 +299,48 @@ O `/dev/uinput` é necessário para os controles virtuais do InputPlumber:
   "HostConfig": {
     "IpcMode": "host",
     "Privileged": false,
-    "CapAdd": ["NET_RAW", "MKNOD", "NET_ADMIN", "SYS_NICE"],
-    "Devices": [{
-      "PathOnHost": "/dev/uinput",
-      "PathInContainer": "/dev/uinput",
-      "CgroupPermissions": "rwm"
-    }],
+    "SecurityOpt": ["seccomp=unconfined"],
+    "CapAdd": ["NET_RAW", "MKNOD", "NET_ADMIN", "SYS_NICE", "SYS_ADMIN"],
+    "Devices": [
+      {
+        "PathOnHost": "/dev/ntsync",
+        "PathInContainer": "/dev/ntsync",
+        "CgroupPermissions": "rwm"
+      },
+      {
+        "PathOnHost": "/dev/uinput",
+        "PathInContainer": "/dev/uinput",
+        "CgroupPermissions": "rwm"
+      },
+      {
+        "PathOnHost": "/dev/uhid",
+        "PathInContainer": "/dev/uhid",
+        "CgroupPermissions": "rwm"
+      }
+    ],
     "DeviceCgroupRules": ["c 10:223 rmw", "c 13:* rmw", "c 244:* rmw"]
   }
 }
 '''
-    devices = [ '/dev/uinput:/dev/uinput:rwm' ]
-    env = [ 'GOW_REQUIRED_DEVICES=/dev/uinput /dev/input/* /dev/dri/* /dev/nvidia*' ]
-    image = 'gow/cachyos-opengamepadui'
+    devices = [
+        '/dev/ntsync:/dev/ntsync:rwm',
+        '/dev/uinput:/dev/uinput:rwm',
+        '/dev/uhid:/dev/uhid:rwm'
+    ]
+    env = [
+        'GOW_REQUIRED_DEVICES=/dev/uinput /dev/uhid /dev/input/* /dev/dri/* /dev/nvidia*'
+    ]
+    image = 'gow/cachyos-opengamepadui:latest'
     mounts = []
-    name = 'CachyosOpenGamepadUI'
+    name = 'CachyOSOpenGamepadUI'
     ports = []
     type = 'docker'
 ```
+
+Não monte `/dev/input` diretamente no container do aplicativo. O Wolf cria
+somente os nós do cliente conectado e executa o `fake-udev` dentro do
+container. A imagem já cria o diretório vazio antes de iniciar o InputPlumber,
+então o hotplug posterior é detectado sem perder o isolamento entre clientes.
 
 Variáveis úteis: `GAMESCOPE_WIDTH`, `GAMESCOPE_HEIGHT`,
 `GAMESCOPE_INTERNAL_WIDTH`, `GAMESCOPE_INTERNAL_HEIGHT` e
@@ -247,6 +352,31 @@ Diretórios do host montados em `~/.config/gamescope` ou
 PowerStation fica instalado, mas desligado por padrão porque `/sys` normalmente
 é somente leitura no container; use `START_POWERSTATION=1` somente quando o
 host fornecer acesso compatível.
+
+Para validar após conectar pelo Moonlight:
+
+```bash
+ogui_container="$(
+  docker ps --filter ancestor=gow/cachyos-opengamepadui:latest \
+    --format '{{.ID}}' | head -n1
+)"
+
+docker exec "$ogui_container" \
+  test -f /usr/share/inputplumber/devices/59-wolf_virtual_gamepad.yaml
+docker exec "$ogui_container" inputplumber devices list
+docker exec "$ogui_container" sh -c \
+  'for event in /dev/input/event*; do
+     name="$(cat "/sys/class/input/${event##*/}/device/name" 2>/dev/null)"
+     case "$name" in Wolf\ *) echo "$event: $name";; esac
+   done'
+docker logs "$ogui_container" 2>&1 |
+  grep -E 'inputplumber|Wolf Virtual Gamepad|Started evdev'
+```
+
+O resultado esperado é um dispositivo composto `Wolf Virtual Gamepad` no
+InputPlumber e pelo menos um `event*` do Wolf. O modo passthrough é proposital:
+o OpenGamepadUI lê o controle e o jogo continua recebendo o dispositivo
+original.
 
 ---
 

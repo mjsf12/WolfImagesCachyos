@@ -9,6 +9,14 @@ ENV \
     START_INPUTPLUMBER=1 \
     START_POWERSTATION=0
 
+# Algumas revisões antigas da imagem base registravam [multilib] duas vezes.
+# O pacman apenas avisa, mas o paru --repo encerra com erro. Preserve a primeira
+# definição de cada repositório e descarte somente blocos repetidos.
+RUN awk '/^\[[^]]+\]$/ { if (seen[$0]++) { skip = 1; next } skip = 0 } !skip { print }' \
+        /etc/pacman.conf > /tmp/pacman.conf && \
+    install -m 0644 /tmp/pacman.conf /etc/pacman.conf && \
+    rm -f /tmp/pacman.conf
+
 # paru é fornecido pelos repositórios já configurados na imagem CachyOS/Chaotic.
 # Os pacotes AUR são compilados por um usuário sem privilégios; sudo é usado
 # pelo helper somente para a transação final do pacman.
@@ -30,6 +38,8 @@ RUN runuser -u aurbuilder -- paru -Syu --repo --noconfirm --needed \
         networkmanager \
         bluez \
         dbus && \
+    runuser -u aurbuilder -- paru -Bi --noconfirm --needed --skipreview \
+        /tmp/pkgbuilds/inputplumber-wolf && \
     runuser -u aurbuilder -- paru -Bi --noconfirm --needed --skipreview \
         /tmp/pkgbuilds/opengamepadui-bin \
         /tmp/pkgbuilds/powerstation-bin && \
@@ -81,19 +91,36 @@ COPY --chmod=755 scripts/startup.sh /opt/gow/startup.sh
 #     "HostConfig": {
 #       "IpcMode": "host",
 #       "Privileged": false,
-#       "CapAdd": ["NET_RAW", "MKNOD", "NET_ADMIN", "SYS_NICE"],
-#       "Devices": [{
-#         "PathOnHost": "/dev/uinput",
-#         "PathInContainer": "/dev/uinput",
-#         "CgroupPermissions": "rwm"
-#       }],
+#       "SecurityOpt": ["seccomp=unconfined"],
+#       "CapAdd": ["NET_RAW", "MKNOD", "NET_ADMIN", "SYS_NICE", "SYS_ADMIN"],
+#       "Devices": [
+#         {
+#           "PathOnHost": "/dev/ntsync",
+#           "PathInContainer": "/dev/ntsync",
+#           "CgroupPermissions": "rwm"
+#         },
+#         {
+#           "PathOnHost": "/dev/uinput",
+#           "PathInContainer": "/dev/uinput",
+#           "CgroupPermissions": "rwm"
+#         },
+#         {
+#           "PathOnHost": "/dev/uhid",
+#           "PathInContainer": "/dev/uhid",
+#           "CgroupPermissions": "rwm"
+#         }
+#       ],
 #       "DeviceCgroupRules": ["c 10:223 rmw", "c 13:* rmw", "c 244:* rmw"]
 #     }
 #   }
 #   '''
-#       devices = [ '/dev/uinput:/dev/uinput:rwm' ]
+#       devices = [
+#         '/dev/ntsync:/dev/ntsync:rwm',
+#         '/dev/uinput:/dev/uinput:rwm',
+#         '/dev/uhid:/dev/uhid:rwm'
+#       ]
 #       env = [
-#         'GOW_REQUIRED_DEVICES=/dev/uinput /dev/input/* /dev/dri/* /dev/nvidia*'
+#         'GOW_REQUIRED_DEVICES=/dev/uinput /dev/uhid /dev/input/* /dev/dri/* /dev/nvidia*'
 #       ]
 #       image = 'gow/cachyos-opengamepadui'
 #       mounts = []

@@ -1,0 +1,53 @@
+# Based on the official Arch Linux inputplumber package.
+pkgname=inputplumber
+pkgver=0.78.0
+pkgrel=1.2
+pkgdesc="Open source input router and remapper daemon for Linux (Wolf hotplug support)"
+arch=('x86_64')
+options=(!lto)
+url="https://github.com/ShadowBlip/InputPlumber"
+license=('GPL-3.0-only')
+depends=(
+  dbus
+  libgcc
+  glibc
+  libevdev
+  libiio
+  systemd-libs
+)
+makedepends=(
+  clang
+  cmake
+  git
+  make
+  rust
+)
+source=(
+  "git+https://github.com/ShadowBlip/InputPlumber.git#tag=v${pkgver}"
+  'inputplumber-wolf-gamepads.patch'
+  '59-wolf_virtual_gamepad.yaml'
+)
+sha256sums=(
+  'd229d0e16b06b88edd102b0758344be3fabc16dcee6de1440f3d7cfc624bf0ee'
+  '435042d578c5294b24c3adc2f0b5a95eb5e0353272490abfe4db76df2e692678'
+  '186aa71ea00c2953cc45bfdff2045542acccb8f945e5d34fae7d227f392b2f56'
+)
+
+prepare() {
+  cd "$srcdir/InputPlumber"
+  patch -Np1 -i "$srcdir/inputplumber-wolf-gamepads.patch"
+}
+
+build() {
+  cd "$srcdir/InputPlumber"
+  make build
+}
+
+package() {
+  cd "$srcdir/InputPlumber"
+  make install PREFIX="$pkgdir/usr" NO_RELOAD=true
+
+  install -Dm644 \
+    "$srcdir/59-wolf_virtual_gamepad.yaml" \
+    "$pkgdir/usr/share/inputplumber/devices/59-wolf_virtual_gamepad.yaml"
+}

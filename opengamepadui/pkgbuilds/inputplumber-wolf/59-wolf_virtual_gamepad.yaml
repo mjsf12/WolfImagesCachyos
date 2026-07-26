@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/ShadowBlip/InputPlumber/main/rootfs/usr/share/inputplumber/schema/composite_device_v1.json
+version: 1
+kind: CompositeDevice
+name: Wolf Virtual Gamepad
+
+matches: []
+maximum_sources: 1
+
+# Wolf creates the Moonlight gamepad after the application container starts.
+# InputPlumber must read it for its D-Bus target, while the original node must
+# remain available to games because stable Wolf does not relay virtual devices
+# created later through the application's own /dev/uinput.
+source_devices:
+  - group: gamepad
+    unique: true
+    passthrough: true
+    udev:
+      attributes:
+        - name: name
+          value: "Wolf *"
+      properties:
+        - name: ID_INPUT_JOYSTICK
+          value: "1"
+      sys_name: "event*"
+      subsystem: input

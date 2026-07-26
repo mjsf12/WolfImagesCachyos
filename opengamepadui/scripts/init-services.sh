@@ -32,6 +32,10 @@ start_daemon() {
 }
 
 if [ "${START_INPUTPLUMBER:-1}" = "1" ]; then
+    # Wolf hotplugs the Moonlight gamepad only after the application container
+    # has started. InputPlumber creates its evdev inotify watcher only when
+    # /dev/input already exists, so create the empty directory first.
+    mkdir -p /dev/input
     start_daemon inputplumber inputplumber
 fi
 
