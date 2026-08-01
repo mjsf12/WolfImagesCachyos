@@ -215,6 +215,12 @@ profile. The image installs a patched InputPlumber 0.78.0 build that:
 - enables D-Bus interception when a new composite controller starts in mode
   `0`, without overriding OpenGamepadUI's in-game mode `1`.
 
+The build also patches OpenGamepadUI 0.45.1 window discovery. Gamescope
+publishes focusable X11 windows as `[window_id, app_id, pid]` triplets; the
+patched launcher uses that AppId as a fallback when Bottles, Heroic, Lutris, or
+another intermediary launcher removes `OGUI_ID` from the game process. Four
+headless Godot tests validate the parser during the image build.
+
 Build the image with:
 
 ```bash

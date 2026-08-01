@@ -1,8 +1,9 @@
 ARG PEGASUS_IMAGE=gow/cachyos-pegasus:latest
+ARG OPENGAMEPADUI_BUILDER_IMAGE=ghcr.io/shadowblip/opengamepadui-builder:4.6.1
 
 # Herda todos os pacotes, caches gráficos e o modo XFCE da imagem Pegasus.
 # hadolint ignore=DL3006
-FROM ${PEGASUS_IMAGE}
+FROM ${PEGASUS_IMAGE} AS opengamepadui-runtime
 
 ENV \
     START_SYSTEM_DBUS=1 \
@@ -54,6 +55,54 @@ RUN runuser -u aurbuilder -- paru -Syu --repo --noconfirm --needed \
 RUN sed -i \
     's|^Exec=.*opengamepadui.*|Exec=/usr/bin/opengamepadui %u|' \
     /usr/share/applications/opengamepadui.desktop
+
+# O OGUI 0.45.1 associa janelas principalmente pelo OGUI_ID dos processos.
+# Launchers intermediários como Bottles, Heroic e Lutris podem remover essa
+# variável antes de criar a janela do jogo. Gere apenas um PCK corrigido usando
+# a mesma versão do Godot do binário oficial; o restante continua vindo do
+# pacote opengamepadui-bin instalado acima.
+FROM ${OPENGAMEPADUI_BUILDER_IMAGE} AS opengamepadui-pck-builder
+
+ARG OPENGAMEPADUI_COMMIT=3fe6ee9a7b032f8ebc29a05d07756457646abb82
+ARG OPENGAMEPADUI_SOURCE_SHA256=dad1c79d123b2f6c02aea7be48134102ed31e37b6250cd36cc524bd8c0655403
+
+WORKDIR /src
+
+RUN curl --fail --location --retry 3 \
+        --output /tmp/opengamepadui-source.tar.gz \
+        "https://github.com/ShadowBlip/OpenGamepadUI/archive/${OPENGAMEPADUI_COMMIT}.tar.gz" && \
+    echo "${OPENGAMEPADUI_SOURCE_SHA256}  /tmp/opengamepadui-source.tar.gz" | sha256sum --check && \
+    tar --extract --gzip --file /tmp/opengamepadui-source.tar.gz \
+        --strip-components=1 --directory /src && \
+    rm -f /tmp/opengamepadui-source.tar.gz
+
+COPY patches/opengamepadui-gamescope-appid-window-detection.patch /tmp/opengamepadui.patch
+RUN patch --strip=1 < /tmp/opengamepadui.patch
+
+# O editor carrega a variante debug durante import/test. As duas variantes usam
+# a extensão oficial 0.45.1 já instalada na etapa de runtime.
+COPY --from=opengamepadui-runtime \
+    /usr/share/opengamepadui/libopengamepadui-core.linux.template_release.x86_64.so \
+    /src/addons/core/bin/libopengamepadui-core.linux.template_release.x86_64.so
+RUN cp \
+        addons/core/bin/libopengamepadui-core.linux.template_release.x86_64.so \
+        addons/core/bin/libopengamepadui-core.linux.template_debug.x86_64.so && \
+    make GODOT=/usr/bin/godot import && \
+    /usr/bin/godot --headless --path /src \
+        --script res://addons/gut/gut_cmdln.gd \
+        -gselect=gamescope_focusable_windows && \
+    mkdir -p /src/build && \
+    /usr/bin/godot --headless --path /src \
+        --export-pack "Linux/X11 x86_64" \
+        /src/build/opengamepad-ui.pck
+
+# Volte à imagem completa e troque somente os scripts/recursos Godot. O binário
+# e a GDExtension continuam byte a byte iguais aos do release oficial 0.45.1.
+FROM opengamepadui-runtime
+
+COPY --from=opengamepadui-pck-builder \
+    /src/build/opengamepad-ui.pck \
+    /usr/share/opengamepadui/opengamepad-ui.pck
 
 # Evita recursão de diálogos Zenity quando a camada Vulkan Gamescope WSI
 # decide continuar com um swapchain X11 normal.

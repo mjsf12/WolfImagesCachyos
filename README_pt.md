@@ -215,6 +215,12 @@ A imagem instala uma compilação corrigida do InputPlumber 0.78.0 que:
 - ativa o modo de interceptação D-Bus quando um controle composto nasce em
   modo `0`, sem impedir que o OpenGamepadUI use o modo de jogo `1`.
 
+O build também corrige a descoberta de janelas do OpenGamepadUI 0.45.1. O
+Gamescope publica janelas X11 focáveis em blocos `[window_id, app_id, pid]`; o
+launcher corrigido usa esse AppId como fallback quando Bottles, Heroic, Lutris
+ou outro launcher intermediário remove `OGUI_ID` do processo do jogo. Quatro
+testes headless do Godot validam o parser durante o build da imagem.
+
 Compile a imagem com:
 
 ```bash

@@ -1,0 +1,132 @@
+diff --git a/core/systems/launcher/gamescope_focusable_windows.gd b/core/systems/launcher/gamescope_focusable_windows.gd
+new file mode 100644
+index 0000000..b6aad8d
+--- /dev/null
++++ b/core/systems/launcher/gamescope_focusable_windows.gd
+@@ -0,0 +1,36 @@
++extends RefCounted
++class_name GamescopeFocusableWindows
++
++## Helpers for parsing GAMESCOPE_FOCUSABLE_WINDOWS.
++##
++## Gamescope publishes this root-window property as repeating
++## [window_id, app_id, pid] triplets. Keeping the parser independent from the
++## X11 client makes it possible to match windows even when an intermediary
++## launcher (Bottles, Heroic, Lutris, etc.) strips OGUI_ID from child processes.
++
++const ENTRY_SIZE := 3
++
++
++## Return candidate window IDs whose Gamescope app ID matches [param app_id].
++## Incomplete trailing entries are ignored.
++static func find_for_app(
++		entries: PackedInt64Array,
++		app_id: int,
++		candidate_windows: PackedInt64Array = PackedInt64Array(),
++	) -> PackedInt64Array:
++	var matching_windows := PackedInt64Array()
++	var complete_size := entries.size() - (entries.size() % ENTRY_SIZE)
++
++	for index in range(0, complete_size, ENTRY_SIZE):
++		var window_id := entries[index]
++		var entry_app_id := entries[index + 1]
++		if entry_app_id != app_id:
++			continue
++		if not candidate_windows.is_empty() and not window_id in candidate_windows:
++			continue
++		if window_id in matching_windows:
++			continue
++		matching_windows.append(window_id)
++
++	matching_windows.sort()
++	return matching_windows
+diff --git a/core/systems/launcher/gamescope_focusable_windows_test.gd b/core/systems/launcher/gamescope_focusable_windows_test.gd
+new file mode 100644
+index 0000000..e5ef977
+--- /dev/null
++++ b/core/systems/launcher/gamescope_focusable_windows_test.gd
+@@ -0,0 +1,45 @@
++extends GutTest
++
++const FocusableWindows := preload("res://core/systems/launcher/gamescope_focusable_windows.gd")
++
++
++func test_finds_window_when_launcher_child_loses_ogui_id() -> void:
++	var entries := PackedInt64Array([33554433, 658226143, 1043])
++	var candidates := PackedInt64Array([33554433])
++
++	var actual := FocusableWindows.find_for_app(entries, 658226143, candidates)
++
++	assert_eq(actual, PackedInt64Array([33554433]))
++
++
++func test_finds_multiple_windows_for_the_same_app() -> void:
++	var entries := PackedInt64Array([
++		101, 5001, 201,
++		102, 5002, 202,
++		103, 5001, 203,
++	])
++
++	var actual := FocusableWindows.find_for_app(entries, 5001)
++
++	assert_eq(actual, PackedInt64Array([101, 103]))
++
++
++func test_rejects_non_candidate_and_other_app_windows() -> void:
++	var entries := PackedInt64Array([
++		101, 5001, 201,
++		102, 5001, 202,
++		103, 5002, 203,
++	])
++	var candidates := PackedInt64Array([102, 103])
++
++	var actual := FocusableWindows.find_for_app(entries, 5001, candidates)
++
++	assert_eq(actual, PackedInt64Array([102]))
++
++
++func test_ignores_incomplete_trailing_entry() -> void:
++	var entries := PackedInt64Array([101, 5001, 201, 102, 5001])
++
++	var actual := FocusableWindows.find_for_app(entries, 5001)
++
++	assert_eq(actual, PackedInt64Array([101]))
+diff --git a/core/systems/launcher/running_app.gd b/core/systems/launcher/running_app.gd
+index 6684ba0..182a610 100644
+--- a/core/systems/launcher/running_app.gd
++++ b/core/systems/launcher/running_app.gd
+@@ -1,6 +1,8 @@
+ extends Resource
+ class_name RunningApp
+ 
++const GamescopeFocusableWindows := preload("res://core/systems/launcher/gamescope_focusable_windows.gd")
++
+ ## Defines a running application
+ ##
+ ## RunningApp contains details and methods around running applications
+@@ -358,11 +360,24 @@ func get_all_window_ids(all_windows: PackedInt64Array, app_pids: PackedInt64Arra
+ 	var app_name := launch_item.name
+ 	var window_ids := PackedInt64Array()
+ 	var xwayland := gamescope.get_xwayland_by_name(display)
++	var gamescope_window_ids := PackedInt64Array()
++	var xwayland_primary := gamescope.get_xwayland(gamescope.XWAYLAND_TYPE_PRIMARY)
++	if xwayland_primary:
++		gamescope_window_ids = GamescopeFocusableWindows.find_for_app(
++			xwayland_primary.get_focusable_windows(),
++			self.app_id,
++			all_windows,
++		)
+ 	logger.trace(app_name + " found related PIDs: " + str(app_pids))
++	logger.trace(app_name + " found Gamescope AppId windows: " + str(gamescope_window_ids))
+ 
+ 	# Loop through all windows and check if the window belongs to one of our
+-	# processes
++	# processes. Gamescope's primary XWayland list is authoritative when wrapper
++	# processes strip OGUI_ID and the secondary X11 window has no STEAM_GAME atom.
+ 	for window_id in all_windows:
++		if window_id in gamescope_window_ids:
++			window_ids.append(window_id)
++			continue
+ 		if xwayland.has_app_id(window_id) and xwayland.get_app_id(window_id) == self.app_id:
+ 			window_ids.append(window_id)
+ 			continue
