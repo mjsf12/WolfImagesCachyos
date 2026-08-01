@@ -211,7 +211,9 @@ profile. The image installs a patched InputPlumber 0.78.0 build that:
   `Wolf Nintendo` virtual controllers plus the motion sensor;
 - creates the `/dev/input` watcher before Wolf connects a controller;
 - exposes the controller to OpenGamepadUI over D-Bus without `EVIOCGRAB`, so
-  the same controller remains available after a game starts.
+  the same controller remains available after a game starts;
+- enables D-Bus interception when a new composite controller starts in mode
+  `0`, without overriding OpenGamepadUI's in-game mode `1`.
 
 Build the image with:
 
@@ -297,6 +299,7 @@ game and launcher mounts already present in your profile:
     base_create_json = '''{
   "HostConfig": {
     "IpcMode": "host",
+    "Tmpfs": {"/dev/input": "rw,dev,mode=0755"},
     "Privileged": false,
     "SecurityOpt": ["seccomp=unconfined"],
     "CapAdd": ["NET_RAW", "MKNOD", "NET_ADMIN", "SYS_NICE", "SYS_ADMIN"],
@@ -330,19 +333,18 @@ game and launcher mounts already present in your profile:
         'GOW_REQUIRED_DEVICES=/dev/uinput /dev/uhid /dev/input/* /dev/dri/* /dev/nvidia*'
     ]
     image = 'gow/cachyos-opengamepadui:latest'
-    mounts = [
-        '/dev/input:/dev/input:rw'
-    ]
+    mounts = []
     name = 'CachyOSOpenGamepadUI'
     ports = []
     type = 'docker'
 ```
 
-The `/dev/input` bind mount is required. Wolf's `fake-udev` forwards the
-hotplug notification, but Docker does not add a device node created on the
-host after the application container starts. The cgroup rule grants access to
-input major 13, while the bind mount makes the late-created `event*` and `js*`
-nodes visible to InputPlumber.
+A private `tmpfs` at `/dev/input` is required. Wolf's `fake-udev` creates the
+late `event*` and `js*` nodes there, while the cgroup rule grants access to
+input major 13. The `dev` option is also required: without it Docker mounts the
+`tmpfs` with `nodev`, and InputPlumber gets `EACCES` when opening the controller.
+Do not bind-mount the host's `/dev/input` for this profile because it conflicts
+with `fake-udev` creating the same nodes.
 
 Useful variables are `GAMESCOPE_WIDTH`, `GAMESCOPE_HEIGHT`,
 `GAMESCOPE_INTERNAL_WIDTH`, `GAMESCOPE_INTERNAL_HEIGHT`, and

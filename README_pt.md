@@ -211,7 +211,9 @@ A imagem instala uma compilação corrigida do InputPlumber 0.78.0 que:
   `Wolf DualSense`, `Wolf Nintendo` e o sensor de movimento;
 - cria o observador de `/dev/input` antes que o Wolf conecte o controle;
 - entrega o controle ao OpenGamepadUI por D-Bus sem aplicar `EVIOCGRAB`, de
-  forma que o mesmo controle continue disponível quando o jogo abrir.
+  forma que o mesmo controle continue disponível quando o jogo abrir;
+- ativa o modo de interceptação D-Bus quando um controle composto nasce em
+  modo `0`, sem impedir que o OpenGamepadUI use o modo de jogo `1`.
 
 Compile a imagem com:
 
@@ -298,6 +300,7 @@ launchers que já existirem no seu perfil:
     base_create_json = '''{
   "HostConfig": {
     "IpcMode": "host",
+    "Tmpfs": {"/dev/input": "rw,dev,mode=0755"},
     "Privileged": false,
     "SecurityOpt": ["seccomp=unconfined"],
     "CapAdd": ["NET_RAW", "MKNOD", "NET_ADMIN", "SYS_NICE", "SYS_ADMIN"],
@@ -331,18 +334,18 @@ launchers que já existirem no seu perfil:
         'GOW_REQUIRED_DEVICES=/dev/uinput /dev/uhid /dev/input/* /dev/dri/* /dev/nvidia*'
     ]
     image = 'gow/cachyos-opengamepadui:latest'
-    mounts = [
-        '/dev/input:/dev/input:rw'
-    ]
+    mounts = []
     name = 'CachyOSOpenGamepadUI'
     ports = []
     type = 'docker'
 ```
 
-O bind mount de `/dev/input` é obrigatório. O `fake-udev` do Wolf encaminha a
-notificação de hotplug, mas o Docker não adiciona ao container um nó de
-dispositivo criado posteriormente no host. A regra de cgroup libera o major 13
-e o bind mount deixa os novos nós `event*` e `js*` visíveis ao InputPlumber.
+O `tmpfs` privado em `/dev/input` é obrigatório. O `fake-udev` do Wolf cria
+nele os nós `event*` e `js*` após o container iniciar, enquanto a regra de
+cgroup libera o major 13. A opção `dev` também é obrigatória: sem ela o Docker
+monta o `tmpfs` com `nodev`, e o InputPlumber recebe `EACCES` ao abrir o
+controle. Não monte `/dev/input` do host nesse perfil, pois isso conflita com a
+criação dos mesmos nós pelo `fake-udev`.
 
 Variáveis úteis: `GAMESCOPE_WIDTH`, `GAMESCOPE_HEIGHT`,
 `GAMESCOPE_INTERNAL_WIDTH`, `GAMESCOPE_INTERNAL_HEIGHT` e

@@ -90,6 +90,7 @@ COPY --chmod=755 scripts/startup.sh /opt/gow/startup.sh
 #       base_create_json = '''{
 #     "HostConfig": {
 #       "IpcMode": "host",
+#       "Tmpfs": {"/dev/input": "rw,dev,mode=0755"},
 #       "Privileged": false,
 #       "SecurityOpt": ["seccomp=unconfined"],
 #       "CapAdd": ["NET_RAW", "MKNOD", "NET_ADMIN", "SYS_NICE", "SYS_ADMIN"],
@@ -123,9 +124,7 @@ COPY --chmod=755 scripts/startup.sh /opt/gow/startup.sh
 #         'GOW_REQUIRED_DEVICES=/dev/uinput /dev/uhid /dev/input/* /dev/dri/* /dev/nvidia*'
 #       ]
 #       image = 'gow/cachyos-opengamepadui'
-#       mounts = [
-#         '/dev/input:/dev/input:rw'
-#       ]
+#       mounts = []
 #       name = 'CachyosOpenGamepadUI'
 #       ports = []
 #       type = 'docker'
