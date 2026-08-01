@@ -123,7 +123,9 @@ COPY --chmod=755 scripts/startup.sh /opt/gow/startup.sh
 #         'GOW_REQUIRED_DEVICES=/dev/uinput /dev/uhid /dev/input/* /dev/dri/* /dev/nvidia*'
 #       ]
 #       image = 'gow/cachyos-opengamepadui'
-#       mounts = []
+#       mounts = [
+#         '/dev/input:/dev/input:rw'
+#       ]
 #       name = 'CachyosOpenGamepadUI'
 #       ports = []
 #       type = 'docker'

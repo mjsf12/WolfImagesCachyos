@@ -6,6 +6,11 @@ name: Wolf Virtual Gamepad
 matches: []
 maximum_sources: 1
 
+# OpenGamepadUI does not enable InputPlumber's global manage-all mode. Manage
+# only Wolf's virtual controller automatically when it appears after startup.
+options:
+  auto_manage: true
+
 # Wolf creates the Moonlight gamepad after the application container starts.
 # InputPlumber must read it for its D-Bus target, while the original node must
 # remain available to games because stable Wolf does not relay virtual devices

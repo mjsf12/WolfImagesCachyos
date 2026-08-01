@@ -331,16 +331,18 @@ launchers que já existirem no seu perfil:
         'GOW_REQUIRED_DEVICES=/dev/uinput /dev/uhid /dev/input/* /dev/dri/* /dev/nvidia*'
     ]
     image = 'gow/cachyos-opengamepadui:latest'
-    mounts = []
+    mounts = [
+        '/dev/input:/dev/input:rw'
+    ]
     name = 'CachyOSOpenGamepadUI'
     ports = []
     type = 'docker'
 ```
 
-Não monte `/dev/input` diretamente no container do aplicativo. O Wolf cria
-somente os nós do cliente conectado e executa o `fake-udev` dentro do
-container. A imagem já cria o diretório vazio antes de iniciar o InputPlumber,
-então o hotplug posterior é detectado sem perder o isolamento entre clientes.
+O bind mount de `/dev/input` é obrigatório. O `fake-udev` do Wolf encaminha a
+notificação de hotplug, mas o Docker não adiciona ao container um nó de
+dispositivo criado posteriormente no host. A regra de cgroup libera o major 13
+e o bind mount deixa os novos nós `event*` e `js*` visíveis ao InputPlumber.
 
 Variáveis úteis: `GAMESCOPE_WIDTH`, `GAMESCOPE_HEIGHT`,
 `GAMESCOPE_INTERNAL_WIDTH`, `GAMESCOPE_INTERNAL_HEIGHT` e
