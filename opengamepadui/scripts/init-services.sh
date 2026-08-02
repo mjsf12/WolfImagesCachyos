@@ -31,6 +31,25 @@ start_daemon() {
     fi
 }
 
+start_inputplumber_x11_bridge() {
+    local bridge=/opt/gow/inputplumber_x11_bridge.py
+
+    if [ ! -x "${bridge}" ]; then
+        gow_log "WARN: InputPlumber X11 bridge is not installed"
+        return
+    fi
+    if pgrep -f "${bridge}" >/dev/null 2>&1; then
+        gow_log "InputPlumber X11 bridge is already running"
+        return
+    fi
+
+    # Xwayland authorizes local clients by UID. Run as the session user and let
+    # the bridge wait for Gamescope to create display :1.
+    gow_log "Starting InputPlumber X11 desktop bridge..."
+    runuser -u gow -- env DISPLAY=:1 "${bridge}" :1 &
+    gow_log "InputPlumber X11 desktop bridge started (pid $!)"
+}
+
 materialize_inputplumber_desktop_targets() {
     local attempt
     local device_name
@@ -175,6 +194,7 @@ if [ "${START_INPUTPLUMBER:-1}" = "1" ]; then
     mkdir -p /dev/input
     start_daemon inputplumber inputplumber
     materialize_inputplumber_desktop_targets || true
+    start_inputplumber_x11_bridge
     maintain_inputplumber_menu_intercept &
 fi
 

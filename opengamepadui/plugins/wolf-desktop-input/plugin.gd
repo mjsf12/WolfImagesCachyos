@@ -1,6 +1,7 @@
 extends Plugin
 
 const ShortcutState := preload("res://plugins/wolf-desktop-input/core/shortcut_state.gd")
+const InterceptPolicy := preload("res://plugins/wolf-desktop-input/core/intercept_policy.gd")
 const QuickBarRegistration := preload(
 	"res://plugins/wolf-desktop-input/core/quick_bar_registration.gd"
 )
@@ -15,6 +16,8 @@ var launch_manager := load("res://core/global/launch_manager.tres") as LaunchMan
 var settings_manager := load("res://core/global/settings_manager.tres") as SettingsManager
 var notification_manager := load("res://core/global/notification_manager.tres") as NotificationManager
 var popup_state_machine := load("res://assets/state/state_machines/popup_state_machine.tres") as StateMachine
+var global_state_machine := load("res://assets/state/state_machines/global_state_machine.tres") as StateMachine
+var in_game_state := load("res://assets/state/states/in_game.tres") as State
 
 var _shortcut_state := ShortcutState.new()
 var _generic_shortcut := true
@@ -28,6 +31,7 @@ var _menus: Array[Dictionary] = []
 var _watched_targets := {}
 var _target_connections := {}
 var _target_devices := {}
+var _last_intercept_mode := -1
 
 
 func _ready() -> void:
@@ -64,6 +68,7 @@ func _ready() -> void:
 	# Never carry desktop mode across a frontend restart or plugin update.
 	_desktop_mode = false
 	_restore_gamepad_profile.call_deferred()
+	_sync_intercept_mode.call_deferred()
 	_install_quick_bar.call_deferred()
 	logger.info("Loaded; generic shortcut: " + str(_generic_shortcut))
 
@@ -100,6 +105,8 @@ func _connect_runtime_signals() -> void:
 		launch_manager.all_apps_stopped.connect(_on_all_apps_stopped)
 	if not popup_state_machine.state_changed.is_connected(_on_popup_state_changed):
 		popup_state_machine.state_changed.connect(_on_popup_state_changed)
+	if not global_state_machine.state_changed.is_connected(_on_global_state_changed):
+		global_state_machine.state_changed.connect(_on_global_state_changed)
 
 
 func _disconnect_runtime_signals() -> void:
@@ -119,6 +126,8 @@ func _disconnect_runtime_signals() -> void:
 		launch_manager.all_apps_stopped.disconnect(_on_all_apps_stopped)
 	if popup_state_machine.state_changed.is_connected(_on_popup_state_changed):
 		popup_state_machine.state_changed.disconnect(_on_popup_state_changed)
+	if global_state_machine.state_changed.is_connected(_on_global_state_changed):
+		global_state_machine.state_changed.disconnect(_on_global_state_changed)
 
 
 func _initialize_inputplumber() -> void:
@@ -271,10 +280,30 @@ func _install_desktop_profile() -> void:
 
 
 func _on_popup_state_changed(_from: State, to: State) -> void:
+	# The generic Guide chord enters interception before the popup transition.
+	# Reconcile after every popup change so closing an overlay always ungrabs the
+	# physical Wolf gamepad and returns control to the running game.
+	_sync_intercept_mode.call_deferred()
 	# InputManager loads the global profile while a Guide menu is open. Restore
 	# desktop input only after the popup closes so its UI remains navigable.
 	if to == null and _desktop_mode:
 		_apply_desktop_profile.call_deferred()
+
+
+func _on_global_state_changed(_from: State, _to: State) -> void:
+	_sync_intercept_mode.call_deferred()
+
+
+func _sync_intercept_mode() -> void:
+	var mode := InterceptPolicy.desired_mode(
+		global_state_machine.has_state(in_game_state),
+		popup_state_machine.current_state() != null,
+	)
+	input_plumber.set_intercept_mode(mode)
+	if mode == _last_intercept_mode:
+		return
+	_last_intercept_mode = mode
+	logger.info("Input route: " + ("game" if mode == 1 else "OpenGamepadUI"))
 
 
 func _on_app_launched(app: RunningApp) -> void:
