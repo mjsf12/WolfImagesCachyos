@@ -4,7 +4,6 @@ const ShortcutState := preload("res://plugins/wolf-desktop-input/core/shortcut_s
 const QuickBarRegistration := preload(
 	"res://plugins/wolf-desktop-input/core/quick_bar_registration.gd"
 )
-const ActivationGuard := preload("res://plugins/wolf-desktop-input/core/activation_guard.gd")
 const SETTINGS_SECTION := "plugin.wolf-desktop-input"
 const SOURCE_PROFILE := "profiles/desktop_mouse.json"
 const USER_PROFILE_DIR := "user://data/gamepad/profiles"
@@ -29,7 +28,6 @@ var _menus: Array[Dictionary] = []
 var _watched_targets := {}
 var _target_connections := {}
 var _target_devices := {}
-var _activation_guard := ActivationGuard.new()
 
 
 func _ready() -> void:
@@ -58,11 +56,10 @@ func _ready() -> void:
 		logger.warn("Official InputManager was not found during plugin startup")
 	_connect_runtime_signals()
 	_initialize_inputplumber()
-	# Card UI also configures Guide interception during startup. The deferred
-	# application handles the usual order; the guard handles later UI/profile
-	# reconfiguration as well.
+	# Card UI also configures Guide interception during startup. Reapply once
+	# after the current frame; the session helper remains authoritative for Wolf
+	# virtual gamepads because Card UI bypasses this global resource.
 	_configure_activation.call_deferred()
-	_arm_activation_guard()
 
 	# Never carry desktop mode across a frontend restart or plugin update.
 	_desktop_mode = false
@@ -71,15 +68,7 @@ func _ready() -> void:
 	logger.info("Loaded; generic shortcut: " + str(_generic_shortcut))
 
 
-func _process(delta: float) -> void:
-	if _activation_guard.advance(delta):
-		_configure_activation()
-	if not _activation_guard.is_active():
-		set_process(false)
-
-
 func unload() -> void:
-	set_process(false)
 	_set_desktop_mode(false, false)
 	_apply_standard_guide_activation()
 	_disconnect_runtime_signals()
@@ -141,7 +130,6 @@ func _initialize_inputplumber() -> void:
 func _on_device_added(device: CompositeDevice) -> void:
 	_apply_activation(device)
 	_apply_activation.bind(device).call_deferred()
-	_arm_activation_guard()
 	for target in device.dbus_devices:
 		var target_path := target.dbus_path as String
 		if _watched_targets.has(target_path):
@@ -186,11 +174,6 @@ func _apply_activation(device: CompositeDevice) -> void:
 func _configure_activation() -> void:
 	var triggers := ShortcutState.activation_triggers(_generic_shortcut)
 	input_plumber.set_intercept_activation(triggers, ShortcutState.GUIDE_CAPABILITY)
-
-
-func _arm_activation_guard() -> void:
-	_activation_guard.arm()
-	set_process(true)
 
 
 func _apply_standard_guide_activation() -> void:
@@ -434,7 +417,6 @@ func _on_generic_shortcut_toggled(enabled: bool) -> void:
 	_generic_shortcut = enabled
 	settings_manager.set_value(SETTINGS_SECTION, "generic_shortcut", enabled)
 	_configure_activation()
-	_arm_activation_guard()
 	_refresh_menus()
 
 

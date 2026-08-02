@@ -33,7 +33,9 @@ start_daemon() {
 
 maintain_inputplumber_menu_intercept() {
     local current_mode
+    local device_name
     local device_path
+    declare -A generic_chord_configured=()
 
     # OpenGamepadUI receives menu input from InputPlumber's D-Bus target, but
     # a newly-created composite starts in mode 0 (events go only to regular
@@ -57,16 +59,47 @@ maintain_inputplumber_menu_intercept() {
                     InterceptMode 2>/dev/null
             )" || continue
 
-            if [ "${current_mode}" != "u 0" ]; then
+            if [ "${current_mode}" = "u 0" ]; then
+                if timeout 2 busctl --system set-property \
+                    org.shadowblip.InputPlumber \
+                    "${device_path}" \
+                    org.shadowblip.Input.CompositeDevice \
+                    InterceptMode u 2 >/dev/null 2>&1; then
+                    gow_log "Enabled InputPlumber D-Bus menu input for ${device_path}"
+                fi
+            fi
+
+            # Card UI writes its own Guide activation directly to the D-Bus
+            # composite during startup. That bypasses the global state exposed
+            # to plugins, so a plugin cannot reliably detect the overwrite.
+            # Keep the generic Moonlight chord authoritative only for Wolf's
+            # virtual gamepad; leave physical/local controllers untouched.
+            if [ "${ENABLE_GENERIC_GUIDE_CHORD:-1}" != "1" ]; then
+                continue
+            fi
+            device_name="$(
+                timeout 2 busctl --system get-property \
+                    org.shadowblip.InputPlumber \
+                    "${device_path}" \
+                    org.shadowblip.Input.CompositeDevice \
+                    Name 2>/dev/null
+            )" || continue
+            if [ "${device_name}" != 's "Wolf Virtual Gamepad"' ]; then
                 continue
             fi
 
-            if timeout 2 busctl --system set-property \
+            if timeout 2 busctl --system call \
                 org.shadowblip.InputPlumber \
                 "${device_path}" \
                 org.shadowblip.Input.CompositeDevice \
-                InterceptMode u 2 >/dev/null 2>&1; then
-                gow_log "Enabled InputPlumber D-Bus menu input for ${device_path}"
+                SetInterceptActivation ass 2 \
+                Gamepad:Button:Start \
+                Gamepad:Button:Select \
+                Gamepad:Button:Guide >/dev/null 2>&1; then
+                if [ -z "${generic_chord_configured[${device_path}]:-}" ]; then
+                    generic_chord_configured["${device_path}"]=1
+                    gow_log "Enabled generic Guide chord for ${device_path}"
+                fi
             fi
         done < <(
             timeout 2 busctl --system --list tree \
