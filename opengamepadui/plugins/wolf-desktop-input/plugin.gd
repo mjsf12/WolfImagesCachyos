@@ -43,6 +43,7 @@ var _target_connections := {}
 var _target_devices := {}
 var _composite_devices := {}
 var _last_intercept_mode := -1
+var _trace_seq := 0
 
 
 func _ready() -> void:
@@ -62,6 +63,11 @@ func _ready() -> void:
 		"mouse_speed",
 		800,
 	) as int
+	_trace("plugin_ready", {
+		"generic_shortcut": _generic_shortcut,
+		"auto_launchers": _auto_launchers,
+		"mouse_speed": _mouse_speed,
+	})
 
 	_install_desktop_profile()
 	_input_manager = _find_input_manager(get_tree().root)
@@ -78,14 +84,14 @@ func _ready() -> void:
 
 	# Never carry desktop mode across a frontend restart or plugin update.
 	_desktop_mode = false
-	_restore_gamepad_profile.call_deferred()
-	_sync_intercept_mode.call_deferred()
+	_restore_gamepad_profile.bind("startup").call_deferred()
+	_sync_intercept_mode.bind("startup").call_deferred()
 	_install_quick_bar.call_deferred()
 	logger.info("Loaded; generic shortcut: " + str(_generic_shortcut))
 
 
 func unload() -> void:
-	_set_desktop_mode(false, false)
+	_set_desktop_mode(false, false, "plugin_unload")
 	_apply_standard_guide_activation()
 	_disconnect_runtime_signals()
 	for target_path: String in _watched_targets.keys():
@@ -97,6 +103,77 @@ func unload() -> void:
 
 func get_settings_menu() -> Control:
 	return _build_menu(false)
+
+
+func _trace(event: String, fields: Dictionary = {}) -> void:
+	_trace_seq += 1
+	var payload := {
+		"seq": _trace_seq,
+		"ticks_ms": Time.get_ticks_msec(),
+		"event": event,
+		"desktop_mode": _desktop_mode,
+		"auto_owned": _auto_owned,
+		"in_game": global_state_machine.has_state(in_game_state),
+		"popup": _state_name(popup_state_machine.current_state()),
+	}
+	for key in fields:
+		payload[key] = fields[key]
+	logger.info("[trace] " + JSON.stringify(payload))
+
+
+func _trace_devices(
+		event: String,
+		reason: String,
+		fields: Dictionary = {},
+	) -> void:
+	var details := fields.duplicate(true)
+	details["reason"] = reason
+	var snapshots: Array[Dictionary] = []
+	var devices := InterceptReconciler.collect_devices(
+		input_plumber.get_composite_devices(),
+		_composite_devices,
+	)
+	for device in devices:
+		snapshots.append(_device_snapshot(device))
+	details["devices"] = snapshots
+	_trace(event, details)
+
+
+func _device_snapshot(device) -> Dictionary:
+	if not is_instance_valid(device):
+		return {"valid": false}
+	var targets: Array[String] = []
+	for target in device.get_target_devices():
+		if target is Dictionary:
+			targets.append(
+				str(target.get("device_type", ""))
+				+ "@"
+				+ str(target.get("dbus_path", ""))
+			)
+	return {
+		"valid": true,
+		"dbus_path": str(device.dbus_path),
+		"name": str(device.name),
+		"profile_name": str(device.profile_name),
+		"intercept_mode": int(device.intercept_mode),
+		"targets": targets,
+	}
+
+
+func _state_name(state: State) -> String:
+	if not state:
+		return ""
+	if not state.resource_path.is_empty():
+		return state.resource_path.get_file()
+	return str(state)
+
+
+func _app_name(app: RunningApp) -> String:
+	if not app:
+		return ""
+	if app.launch_item:
+		return app.launch_item.name
+	return "appid:" + str(app.app_id)
 
 
 func _connect_runtime_signals() -> void:
@@ -149,6 +226,7 @@ func _initialize_inputplumber() -> void:
 
 func _on_device_added(device: CompositeDevice) -> void:
 	_composite_devices[device.dbus_path as String] = device
+	_trace("device_added", {"device": _device_snapshot(device)})
 	_apply_activation(device)
 	_apply_activation.bind(device).call_deferred()
 	for target in device.dbus_devices:
@@ -163,10 +241,11 @@ func _on_device_added(device: CompositeDevice) -> void:
 		logger.info("Watching InputPlumber target " + target_path)
 	# Reapply the current route through the object delivered by the signal. The
 	# InputPlumberInstance cache can lag behind this callback on OGUI 0.46.
-	_sync_intercept_mode.call_deferred()
+	_sync_intercept_mode.bind("device_added").call_deferred()
 
 
 func _on_device_removed(device_path: String) -> void:
+	_trace("device_removed", {"device_path": device_path})
 	_composite_devices.erase(device_path)
 	_shortcut_state.forget_device(device_path)
 	var stale_targets: Array[String] = []
@@ -209,7 +288,14 @@ func _apply_standard_guide_activation() -> void:
 
 
 func _on_dbus_input_event(event: String, value: float, device_path: String) -> void:
-	if not _shortcut_state.handle_event(device_path, event, value):
+	var toggled := _shortcut_state.handle_event(device_path, event, value)
+	_trace("dbus_input", {
+		"device_path": device_path,
+		"input_event": event,
+		"value": value,
+		"shortcut_toggled": toggled,
+	})
+	if not toggled:
 		return
 
 	# Tell the official InputManager that this Guide chord performed an action.
@@ -225,19 +311,28 @@ func _on_dbus_input_event(event: String, value: float, device_path: String) -> v
 	# second borrow and Godot rejects it as "already bound". Leave the callback
 	# first, then perform the profile switch on the main loop.
 	var enabled := not _desktop_mode
-	_set_desktop_mode.bind(enabled, true).call_deferred()
+	_trace("shortcut_toggle_queued", {"requested_enabled": enabled})
+	_set_desktop_mode.bind(enabled, true, "shortcut").call_deferred()
 
 
-func _set_desktop_mode(enabled: bool, show_notification: bool = true) -> void:
+func _set_desktop_mode(
+		enabled: bool,
+		show_notification: bool = true,
+		reason: String = "unspecified",
+	) -> void:
 	var requested_enabled := enabled
+	_trace_devices("desktop_mode_requested", reason, {
+		"requested_enabled": requested_enabled,
+		"show_notification": show_notification,
+	})
 	if requested_enabled:
-		enabled = _apply_desktop_profile()
+		enabled = _apply_desktop_profile(reason)
 	if not enabled:
-		_restore_gamepad_profile()
+		_restore_gamepad_profile(reason)
 
 	if _desktop_mode == enabled:
 		_refresh_menus()
-		_sync_intercept_mode.call_deferred()
+		_sync_intercept_mode.bind(reason + ":unchanged").call_deferred()
 		if requested_enabled and not enabled and show_notification:
 			notification_manager.show(Notification.new("Desktop mouse failed to load"))
 		return
@@ -253,13 +348,18 @@ func _set_desktop_mode(enabled: bool, show_notification: bool = true) -> void:
 			text = "Gamepad profile restored"
 		notification_manager.show(Notification.new(text))
 	logger.info("Desktop mode: " + str(enabled))
+	_trace_devices("desktop_mode_committed", reason, {
+		"requested_enabled": requested_enabled,
+		"enabled": enabled,
+	})
 	# A Guide + West/X desktop toggle does not open a popup. InputPlumber still
 	# enters interception while recognizing the activation chord, so explicitly
 	# restore the route after the deferred profile switch finishes.
-	_sync_intercept_mode.call_deferred()
+	_sync_intercept_mode.bind(reason + ":committed").call_deferred()
 
 
-func _apply_desktop_profile() -> bool:
+func _apply_desktop_profile(reason: String = "unspecified") -> bool:
+	_trace_devices("desktop_profile_apply_before", reason)
 	if not FileAccess.file_exists(USER_PROFILE):
 		_install_desktop_profile()
 	if not FileAccess.file_exists(USER_PROFILE):
@@ -280,17 +380,24 @@ func _apply_desktop_profile() -> bool:
 			"InputPlumber did not confirm the desktop profile; "
 			+ "check profile serialization and D-Bus authorization"
 		)
+		_trace_devices("desktop_profile_apply_rejected", reason)
 		return false
 	logger.info("Desktop profile confirmed on " + str(confirmed) + " composite(s)")
+	_trace_devices("desktop_profile_apply_confirmed", reason, {"confirmed": confirmed})
 	return true
 
 
-func _restore_gamepad_profile() -> void:
+func _restore_gamepad_profile(reason: String = "unspecified") -> void:
 	var current_app := launch_manager.get_current_app()
+	_trace_devices("gamepad_profile_restore_before", reason, {
+		"current_app": _app_name(current_app),
+	})
 	if current_app:
 		launch_manager.set_app_gamepad_profile(current_app)
 	else:
 		launch_manager.set_gamepad_profile("")
+	_trace_devices("gamepad_profile_restore_after", reason)
+	_trace_devices.bind("gamepad_profile_restore_deferred", reason).call_deferred()
 
 
 func _install_desktop_profile() -> void:
@@ -322,21 +429,26 @@ func _install_desktop_profile() -> void:
 
 
 func _on_popup_state_changed(_from: State, to: State) -> void:
+	_trace("popup_state_changed", {"to": _state_name(to)})
 	# The generic Guide chord enters interception before the popup transition.
 	# Reconcile after every popup change so closing an overlay always ungrabs the
 	# physical Wolf gamepad and returns control to the running game.
-	_sync_intercept_mode.call_deferred()
+	_sync_intercept_mode.bind("popup_state_changed").call_deferred()
 	# InputManager loads the global profile while a Guide menu is open. Restore
 	# desktop input only after the popup closes so its UI remains navigable.
 	if to == null and _desktop_mode:
-		_apply_desktop_profile.call_deferred()
+		_apply_desktop_profile.bind("popup_closed").call_deferred()
 
 
-func _on_global_state_changed(_from: State, _to: State) -> void:
-	_sync_intercept_mode.call_deferred()
+func _on_global_state_changed(from: State, to: State) -> void:
+	_trace("global_state_changed", {
+		"from": _state_name(from),
+		"to": _state_name(to),
+	})
+	_sync_intercept_mode.bind("global_state_changed").call_deferred()
 
 
-func _sync_intercept_mode() -> void:
+func _sync_intercept_mode(reason: String = "unspecified") -> void:
 	var mode := InterceptPolicy.desired_mode(
 		global_state_machine.has_state(in_game_state),
 		popup_state_machine.current_state() != null,
@@ -347,11 +459,16 @@ func _sync_intercept_mode() -> void:
 		input_plumber.get_composite_devices(),
 		_composite_devices,
 	)
+	_trace_devices("intercept_sync_before", reason, {"desired_mode": mode})
 	var writes := InterceptReconciler.apply_mode(
 		input_plumber,
 		devices,
 		mode,
 	)
+	_trace_devices("intercept_sync_after", reason, {
+		"desired_mode": mode,
+		"confirmed_writes": writes,
+	})
 	if writes == 0:
 		logger.warn(
 			"InputPlumber did not confirm the route on any live composite; "
@@ -370,50 +487,57 @@ func _sync_intercept_mode() -> void:
 
 
 func _on_app_launched(app: RunningApp) -> void:
-	_sync_intercept_mode.call_deferred()
+	_trace("app_launched", {"app": _app_name(app)})
+	_sync_intercept_mode.bind("app_launched").call_deferred()
 	var desktop_launcher := _is_desktop_launcher(app)
 	if DesktopModePolicy.should_restore_for_app(_desktop_mode, desktop_launcher):
 		_auto_owned = false
-		_set_desktop_mode(false, false)
+		_set_desktop_mode(false, false, "game_launched")
 		return
 	if not _auto_launchers or not desktop_launcher:
 		return
 	_auto_owned = true
-	_set_desktop_mode(true, true)
+	_set_desktop_mode(true, true, "desktop_launcher_launched")
 
 
-func _on_app_switched(_from: RunningApp, to: RunningApp) -> void:
+func _on_app_switched(from: RunningApp, to: RunningApp) -> void:
+	_trace("app_switched", {
+		"from": _app_name(from),
+		"to": _app_name(to),
+	})
 	# LaunchManager applies the selected game profile after app_switched. Reassert
 	# the route on the next frame so that late profile work cannot retain the
 	# frontend's exclusive grab.
-	_sync_intercept_mode.call_deferred()
+	_sync_intercept_mode.bind("app_switched").call_deferred()
 	var desktop_launcher := _is_desktop_launcher(to)
 	if DesktopModePolicy.should_restore_for_app(_desktop_mode, desktop_launcher):
 		_auto_owned = false
-		_set_desktop_mode(false, false)
+		_set_desktop_mode(false, false, "game_switched")
 		return
 	if _auto_launchers and desktop_launcher:
 		_auto_owned = true
-		_set_desktop_mode(true, false)
+		_set_desktop_mode(true, false, "desktop_launcher_switched")
 		return
 	if _auto_owned:
 		_auto_owned = false
-		_set_desktop_mode(false, false)
+		_set_desktop_mode(false, false, "auto_launcher_left")
 		return
 	if _desktop_mode:
-		_apply_desktop_profile.call_deferred()
+		_apply_desktop_profile.bind("desktop_app_switched").call_deferred()
 
 
 func _on_app_stopped(app: RunningApp) -> void:
-	_sync_intercept_mode.call_deferred()
+	_trace("app_stopped", {"app": _app_name(app)})
+	_sync_intercept_mode.bind("app_stopped").call_deferred()
 	if _auto_owned and _is_desktop_launcher(app):
 		_auto_owned = false
-		_set_desktop_mode(false, false)
+		_set_desktop_mode(false, false, "desktop_launcher_stopped")
 
 
 func _on_all_apps_stopped() -> void:
+	_trace("all_apps_stopped")
 	_auto_owned = false
-	_set_desktop_mode(false, false)
+	_set_desktop_mode(false, false, "all_apps_stopped")
 
 
 func _is_desktop_launcher(app: RunningApp) -> bool:
@@ -523,7 +647,7 @@ func _build_menu(compact: bool) -> Control:
 
 func _on_toggle_pressed() -> void:
 	_auto_owned = false
-	_set_desktop_mode(not _desktop_mode, true)
+	_set_desktop_mode(not _desktop_mode, true, "quick_bar")
 
 
 func _on_generic_shortcut_toggled(enabled: bool) -> void:
@@ -538,7 +662,7 @@ func _on_auto_launchers_toggled(enabled: bool) -> void:
 	settings_manager.set_value(SETTINGS_SECTION, "auto_launchers", enabled)
 	if not enabled and _auto_owned:
 		_auto_owned = false
-		_set_desktop_mode(false, false)
+		_set_desktop_mode(false, false, "automatic_launchers_disabled")
 	_refresh_menus()
 
 
@@ -547,7 +671,7 @@ func _on_mouse_speed_changed(value: float) -> void:
 	settings_manager.set_value(SETTINGS_SECTION, "mouse_speed", _mouse_speed)
 	_install_desktop_profile()
 	if _desktop_mode:
-		_apply_desktop_profile()
+		_apply_desktop_profile("mouse_speed_changed")
 	_refresh_menus()
 
 

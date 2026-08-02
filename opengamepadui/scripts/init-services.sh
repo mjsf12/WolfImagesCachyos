@@ -56,6 +56,31 @@ start_inputplumber_x11_bridge() {
     gow_log "InputPlumber X11 desktop bridge started (pid $!)"
 }
 
+start_inputplumber_diagnostics() {
+    local diagnostics=/opt/gow/inputplumber_diagnostics.py
+    local session_user="${UNAME:-gow}"
+
+    if [ "${WOLF_INPUT_DIAGNOSTICS:-1}" != "1" ]; then
+        gow_log "Wolf input diagnostics disabled"
+        return
+    fi
+    if [ ! -x "${diagnostics}" ]; then
+        gow_log "WARN: Wolf input diagnostics are not installed"
+        return
+    fi
+    if pgrep -f "${diagnostics}" >/dev/null 2>&1; then
+        gow_log "Wolf input diagnostics are already running"
+        return
+    fi
+
+    gow_log "Starting persistent Wolf input diagnostics..."
+    runuser -u "${session_user}" -- env \
+        DISPLAY=:1 \
+        WOLF_INPUT_TRACE_PATH=/home/${session_user}/.local/state/opengamepadui/wolf-input-trace.jsonl \
+        "${diagnostics}" :1 &
+    gow_log "Wolf input diagnostics started (pid $!)"
+}
+
 materialize_inputplumber_desktop_targets() {
     local attempt
     local device_name
@@ -204,9 +229,11 @@ if [ "${START_INPUTPLUMBER:-1}" = "1" ]; then
     # has started. InputPlumber creates its evdev inotify watcher only when
     # /dev/input already exists, so create the empty directory first.
     mkdir -p /dev/input
+    export RUST_LOG="${INPUTPLUMBER_LOG:-inputplumber::input::composite_device=debug,inputplumber=info}"
     start_daemon inputplumber inputplumber
     materialize_inputplumber_desktop_targets || true
     start_inputplumber_x11_bridge
+    start_inputplumber_diagnostics
     maintain_inputplumber_menu_intercept &
 fi
 

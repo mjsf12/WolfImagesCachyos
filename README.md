@@ -246,10 +246,18 @@ is written to the live InputPlumber composite captured from the device-added
 signal, even if OpenGamepadUI's local device cache is temporarily empty or
 already reports that mode. The plugin reads the live D-Bus property back, so a
 silently denied route change is reported as a failure instead of success.
-Twenty-five additional tests validate the chord, route, app-transition policy, profile serialization,
-authorization failure, and desktop profile. The plugin registers its procedural
+Twenty-five additional tests validate the chord, route, app-transition policy,
+profile serialization, authorization failure, and desktop profile. The plugin
+registers its procedural
 Quick Bar page with an explicit title, avoiding OpenGamepadUI
 0.46.0's unsafe legacy `SectionLabel` lookup.
+
+The session also records correlated InputPlumber properties, D-Bus signals,
+relevant source/target evdev events, and X11 pointer changes in
+`~/.local/state/opengamepadui/wolf-input-trace.jsonl`. Plugin transactions use
+the `[trace]` marker in container logs. Set `WOLF_INPUT_DIAGNOSTICS=0` to disable
+the external recorder after troubleshooting is complete. The recorder keeps the
+current 50 MiB trace and one `.previous` file by default.
 
 Build the image with:
 

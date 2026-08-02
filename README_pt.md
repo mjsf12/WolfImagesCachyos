@@ -237,10 +237,17 @@ jogo é restaurado ao sair do modo mouse. A barra rápida permite alterar o modo
 o atalho genérico, a ativação automática para launchers e a velocidade do
 ponteiro. Cada mudança de rota é confirmada relendo a propriedade D-Bus real;
 assim uma operação negada silenciosamente não é mais registrada como sucesso.
-Vinte e cinco testes adicionais validam atalhos, rotas, transição para jogos, serialização de perfil,
-falha de autorização e o perfil desktop. O plugin registra sua página procedural com um título explícito na
-barra rápida, evitando a busca legada insegura por `SectionLabel` do
-OpenGamepadUI 0.46.0.
+Vinte e cinco testes adicionais validam atalhos, rotas, transição para jogos,
+serialização de perfil, falha de autorização e o perfil desktop. O plugin
+registra sua página procedural com um título explícito na barra rápida, evitando
+a busca legada insegura por `SectionLabel` do OpenGamepadUI 0.46.0.
+
+A sessão também grava propriedades correlacionadas do InputPlumber, sinais
+D-Bus, eventos evdev relevantes da origem e dos alvos e movimentos do ponteiro
+X11 em `~/.local/state/opengamepadui/wolf-input-trace.jsonl`. As transações do
+plugin usam o marcador `[trace]` nos logs do contêiner. Defina
+`WOLF_INPUT_DIAGNOSTICS=0` para desativar o gravador externo depois do debug. Por
+padrão, o gravador mantém o arquivo atual de 50 MiB e um arquivo `.previous`.
 
 Compile a imagem com:
 

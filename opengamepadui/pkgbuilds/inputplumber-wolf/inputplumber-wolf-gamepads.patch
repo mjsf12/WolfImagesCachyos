@@ -83,7 +83,7 @@ index fd2fdd7..733aa59 100644
 +            && (cap == first_cap
 +                || (emulates_missing_guide && self.intercept_activation_caps.contains(cap)))
 +        {
-@@ -2050,33 +2062,42 @@ impl CompositeDevice {
+@@ -2050,33 +2062,41 @@ impl CompositeDevice {
                  // We must have a match, we are of the correct length and all capabilities matched.
                  log::debug!("Found activation chord!");
 -                for c in self.intercept_activation_caps.clone() {
@@ -120,9 +120,8 @@ index fd2fdd7..733aa59 100644
                  if self.intercept_active_inputs.contains(&cap) {
 +                    // A complete activation chord is represented by the
 +                    // synthetic target until the first trigger is released.
-+                    if self.intercept_mode == InterceptMode::Always
-+                        && self.intercept_active_inputs.len()
-+                            == self.intercept_activation_caps.len()
++                    if self.intercept_active_inputs.len()
++                        == self.intercept_activation_caps.len()
 +                    {
 +                        for c in self.intercept_activation_caps.clone() {
 +                            if let Some(index) = self.active_inputs.iter().position(|r| r == &c) {
@@ -143,7 +142,7 @@ index fd2fdd7..733aa59 100644
                      let index = self
                          .intercept_active_inputs
                          .iter()
-@@ -2090,7 +2111,10 @@ impl CompositeDevice {
+@@ -2090,7 +2110,10 @@ impl CompositeDevice {
                      return Ok(true);
                  }
              }

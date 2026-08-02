@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import os
 import re
+import stat
 import subprocess
 import threading
 import time
@@ -25,6 +26,34 @@ EXPECTED_EVENTS = [
 def run(*args: str) -> str:
     result = subprocess.run(args, check=True, text=True, capture_output=True)
     return result.stdout.strip()
+
+
+def materialize_event_node(path: str) -> None:
+    if os.path.exists(path):
+        return
+    event_name = os.path.basename(path)
+    with open(f"/sys/class/input/{event_name}/dev", encoding="utf-8") as dev_file:
+        major, minor = (int(value) for value in dev_file.read().strip().split(":"))
+    os.mknod(path, stat.S_IFCHR | 0o666, os.makedev(major, minor))
+
+
+def find_event_path(device_name: str, timeout: float = 3.0) -> str:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        for entry in os.scandir("/sys/class/input"):
+            if not entry.name.startswith("event"):
+                continue
+            try:
+                with open(
+                    f"{entry.path}/device/name",
+                    encoding="utf-8",
+                ) as name_file:
+                    if name_file.read().strip() == device_name:
+                        return f"/dev/input/{entry.name}"
+            except OSError:
+                continue
+        time.sleep(0.05)
+    raise RuntimeError(f"event device was not created for {device_name}")
 
 
 def find_composite(source_path: str, timeout: float = 8.0) -> str:
@@ -135,6 +164,8 @@ def capture_chord(
     ui: UInput,
     target: str,
     activation_order: tuple[int, int],
+    composite: str = "",
+    reset_mode_before_release: int | None = None,
 ) -> list[tuple[str, float]]:
     output: list[str] = []
     monitor = subprocess.Popen(
@@ -158,6 +189,27 @@ def capture_chord(
         (first, 1),
         (second, 1),
         (ecodes.BTN_WEST, 1),
+    ):
+        ui.write(ecodes.EV_KEY, code, value)
+        ui.syn()
+        time.sleep(0.12)
+
+    if reset_mode_before_release is not None:
+        if not composite:
+            raise ValueError("composite is required when resetting the route")
+        run(
+            "busctl",
+            "--system",
+            "set-property",
+            SERVICE,
+            composite,
+            COMPOSITE_INTERFACE,
+            "InterceptMode",
+            "u",
+            str(reset_mode_before_release),
+        )
+
+    for code, value in (
         (ecodes.BTN_WEST, 0),
         (first, 0),
         (second, 0),
@@ -214,20 +266,25 @@ def main() -> None:
             (ecodes.ABS_Y, AbsInfo(0, -32768, 32767, 16, 128, 1)),
         ],
     }
+    test_device_name = f"Wolf Codex Test {os.getpid()} (virtual) pad"
     with UInput(
         capabilities,
-        name="Wolf X-Box One (virtual) pad",
+        name=test_device_name,
         vendor=0x045E,
         product=0x0B13,
         version=0x0517,
         bustype=ecodes.BUS_USB,
     ) as ui:
-        composite = find_composite(ui.device.path)
-        target = get_dbus_target(composite)
+        source_path = find_event_path(test_device_name)
+        materialize_event_node(source_path)
+        composite = find_composite(source_path)
+        print(f"TEST source={source_path} composite={composite}")
         test_profile = os.environ.get("INPUTPLUMBER_TEST_PROFILE", "")
         if test_profile:
             load_profile(composite, test_profile, "Wolf Desktop Mouse")
             print(f"PASS desktop profile accepted: {test_profile}")
+        target = get_dbus_target(composite)
+        print(f"TEST dbus_target={target}")
         orders = (
             ("start-select", (ecodes.BTN_START, ecodes.BTN_SELECT)),
             ("select-start", (ecodes.BTN_SELECT, ecodes.BTN_START)),
@@ -239,6 +296,20 @@ def main() -> None:
                 events = capture_chord(ui, target, order)
                 assert_expected(case_name, events)
                 print(f"PASS {case_name}: {events}")
+
+        # OpenGamepadUI restores pass-through immediately after handling X,
+        # while the physical activation buttons are still held. The synthetic
+        # Guide release must survive that mid-chord route transition.
+        configure_chord(composite, 1)
+        events = capture_chord(
+            ui,
+            target,
+            (ecodes.BTN_START, ecodes.BTN_SELECT),
+            composite,
+            reset_mode_before_release=1,
+        )
+        assert_expected("game/pass/mid-chord-route-reset", events)
+        print(f"PASS game/pass/mid-chord-route-reset: {events}")
 
 
 if __name__ == "__main__":
