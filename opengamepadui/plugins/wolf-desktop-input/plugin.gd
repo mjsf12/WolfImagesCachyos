@@ -9,6 +9,7 @@ const SOURCE_PROFILE := "profiles/desktop_mouse.json"
 const USER_PROFILE_DIR := "user://data/gamepad/profiles"
 const USER_PROFILE := USER_PROFILE_DIR + "/wolf_desktop_mouse.json"
 const GUIDE_ACTION := "ogui_guide_action"
+const ACTIVATION_GUARD_INTERVAL := 0.25
 
 var input_plumber := load("res://core/systems/input/input_plumber.tres") as InputPlumberInstance
 var launch_manager := load("res://core/global/launch_manager.tres") as LaunchManager
@@ -28,6 +29,7 @@ var _menus: Array[Dictionary] = []
 var _watched_targets := {}
 var _target_connections := {}
 var _target_devices := {}
+var _activation_guard_elapsed := 0.0
 
 
 func _ready() -> void:
@@ -56,9 +58,9 @@ func _ready() -> void:
 		logger.warn("Official InputManager was not found during plugin startup")
 	_connect_runtime_signals()
 	_initialize_inputplumber()
-	# Card UI also configures the Guide interception during startup. Reapply our
-	# global activation after the current frame so generic-controller chords win
-	# regardless of node/plugin initialization order.
+	# Card UI also configures Guide interception during startup. The deferred
+	# application handles the usual order; the guard handles later UI/profile
+	# reconfiguration as well.
 	_configure_activation.call_deferred()
 
 	# Never carry desktop mode across a frontend restart or plugin update.
@@ -66,6 +68,14 @@ func _ready() -> void:
 	_restore_gamepad_profile.call_deferred()
 	_install_quick_bar.call_deferred()
 	logger.info("Loaded; generic shortcut: " + str(_generic_shortcut))
+
+
+func _process(delta: float) -> void:
+	_activation_guard_elapsed += delta
+	if _activation_guard_elapsed < ACTIVATION_GUARD_INTERVAL:
+		return
+	_activation_guard_elapsed = 0.0
+	_ensure_activation()
 
 
 func unload() -> void:
@@ -173,6 +183,17 @@ func _apply_activation(device: CompositeDevice) -> void:
 func _configure_activation() -> void:
 	var triggers := ShortcutState.activation_triggers(_generic_shortcut)
 	input_plumber.set_intercept_activation(triggers, ShortcutState.GUIDE_CAPABILITY)
+
+
+func _ensure_activation() -> void:
+	if not ShortcutState.activation_needs_restore(
+		input_plumber.get_intercept_triggers(),
+		input_plumber.get_intercept_target(),
+		_generic_shortcut,
+	):
+		return
+	logger.info("Restoring system shortcut after frontend reconfiguration")
+	_configure_activation()
 
 
 func _apply_standard_guide_activation() -> void:
