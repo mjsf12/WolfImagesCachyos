@@ -1,6 +1,9 @@
 extends Plugin
 
 const ShortcutState := preload("res://plugins/wolf-desktop-input/core/shortcut_state.gd")
+const QuickBarRegistration := preload(
+	"res://plugins/wolf-desktop-input/core/quick_bar_registration.gd"
+)
 const SETTINGS_SECTION := "plugin.wolf-desktop-input"
 const SOURCE_PROFILE := "profiles/desktop_mouse.json"
 const USER_PROFILE_DIR := "user://data/gamepad/profiles"
@@ -315,12 +318,17 @@ func _find_input_manager(node: Node) -> InputManager:
 func _install_quick_bar() -> void:
 	if is_instance_valid(_quick_bar_panel):
 		return
-	if not get_tree().get_first_node_in_group("quick-bar"):
+	var quick_bar := get_tree().get_first_node_in_group("quick-bar")
+	if not quick_bar:
 		get_tree().create_timer(0.5).timeout.connect(_install_quick_bar)
 		return
 	_quick_bar_panel = _build_menu(true)
 	var icon := load("res://assets/icons/mouse-pointer.svg") as Texture2D
-	add_to_quick_bar(_quick_bar_panel, icon)
+	if not QuickBarRegistration.add_menu(quick_bar, _quick_bar_panel, icon):
+		logger.error("Quick Bar does not provide add_child_menu")
+		_quick_bar_panel.queue_free()
+		_quick_bar_panel = null
+		return
 	logger.info("Added Desktop Input controls to the quick bar")
 
 
@@ -329,10 +337,14 @@ func _build_menu(compact: bool) -> Control:
 	menu.name = "WolfDesktopInputMenu"
 	menu.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
-	var section := Label.new()
-	section.name = "SectionLabel"
-	section.text = "Desktop Input"
-	menu.add_child(section)
+	# The Quick Bar receives an explicit title during registration. Procedural
+	# nodes have no scene owner, and OGUI 0.45.1's legacy title discovery calls
+	# null.get("text") when it cannot find an owned SectionLabel.
+	if not compact:
+		var section := Label.new()
+		section.name = "SectionLabel"
+		section.text = "Desktop Input"
+		menu.add_child(section)
 
 	var status := Label.new()
 	menu.add_child(status)

@@ -232,7 +232,10 @@ desktop, o analógico direito move o ponteiro, `A`/RT fazem clique esquerdo,
 `B`/LT fazem clique direito e os bumpers rolam a página. O perfil anterior do
 jogo é restaurado ao sair do modo mouse. A barra rápida permite alterar o modo,
 o atalho genérico, a ativação automática para launchers e a velocidade do
-ponteiro. Oito testes adicionais validam o chord e o conteúdo do perfil.
+ponteiro. O plugin registra sua página procedural com um título explícito na
+barra rápida, evitando a busca legada insegura por `SectionLabel` do
+OpenGamepadUI 0.45.1. Testes adicionais validam o atalho, o perfil e esse
+registro.
 
 Compile a imagem com:
 

@@ -231,8 +231,10 @@ the shortcut opens the main menu, `Start + Select + A` opens the quick bar, and
 desktop mode, the right stick moves the pointer, `A`/RT left-click, `B`/LT
 right-click, and the bumpers scroll. The previous game profile is restored when
 mouse mode is disabled. Its quick-bar page controls the current mode, generic
-shortcut, automatic launcher activation, and pointer speed. Eight additional
-tests validate the chord and desktop profile.
+shortcut, automatic launcher activation, and pointer speed. Eleven additional
+tests validate the chord and desktop profile. The plugin registers its
+procedural Quick Bar page with an explicit title, avoiding OpenGamepadUI
+0.45.1's unsafe legacy `SectionLabel` lookup.
 
 Build the image with:
 
