@@ -93,15 +93,27 @@ materialize_inputplumber_targets() {
     local device_number
     local event_name
     local event_path
+    local gamepad_sysfs_path
+    local joystick_device_number
+    local joystick_found
+    local joystick_major_number
+    local joystick_metadata_path
+    local joystick_minor_number
+    local joystick_name
+    local joystick_node_path
+    local joystick_path
     local major_number
+    local metadata_path
     local minor_number
     local node_path
     local targets_found
+    local udev_metadata=/opt/gow/inputplumber-udev-metadata
 
     # Wolf gives application containers a private /dev/input. InputPlumber can
     # create uinput devices in the kernel, but there is no udev daemon here to
     # create their event nodes in that private directory. Materialize all three
-    # targets before Gamescope starts and enumerates input devices.
+    # targets plus the Xbox jsN handler before Gamescope and Wine enumerate
+    # input devices.
     for attempt in $(seq 1 50); do
         targets_found=0
         for event_path in /sys/class/input/event*; do
@@ -130,6 +142,70 @@ materialize_inputplumber_targets() {
                     gow_log "Created ${node_path} for ${device_name}"
                 else
                     gow_log "WARN: failed to create ${node_path} for ${device_name}"
+                    continue
+                fi
+            fi
+
+            if [ "${device_name}" = "Microsoft Xbox Series S|X Controller" ]; then
+                if metadata_path="$(
+                    "${udev_metadata}" \
+                        "${device_name}" \
+                        "${major_number}" \
+                        "${minor_number}" 2>/dev/null
+                )"; then
+                    gow_log "Registered ${node_path} as a udev joystick (${metadata_path})"
+                else
+                    gow_log "WARN: failed to register udev metadata for ${node_path}"
+                    continue
+                fi
+
+                # Wine/Proton still enumerates virtual controllers through the
+                # Linux joystick handler. uinput creates jsN in sysfs beside
+                # eventN, but Wolf's private /dev/input has no udev daemon to
+                # materialize that character node either.
+                joystick_found=0
+                gamepad_sysfs_path="$(readlink -f "${event_path}/device")"
+                for joystick_path in /sys/class/input/js*; do
+                    [ -e "${joystick_path}" ] || continue
+                    [ "$(readlink -f "${joystick_path}/device")" = \
+                        "${gamepad_sysfs_path}" ] || continue
+
+                    joystick_name="${joystick_path##*/}"
+                    joystick_device_number="$(cat "${joystick_path}/dev" 2>/dev/null || true)"
+                    case "${joystick_device_number}" in
+                        *:*) ;;
+                        *) continue ;;
+                    esac
+                    joystick_major_number="${joystick_device_number%%:*}"
+                    joystick_minor_number="${joystick_device_number##*:}"
+                    joystick_node_path="/dev/input/${joystick_name}"
+
+                    if [ ! -e "${joystick_node_path}" ]; then
+                        if ! mknod \
+                            "${joystick_node_path}" \
+                            c \
+                            "${joystick_major_number}" \
+                            "${joystick_minor_number}"; then
+                            gow_log "WARN: failed to create ${joystick_node_path}"
+                            continue
+                        fi
+                    fi
+                    chmod 0666 "${joystick_node_path}"
+                    if joystick_metadata_path="$(
+                        "${udev_metadata}" \
+                            "${device_name}" \
+                            "${joystick_major_number}" \
+                            "${joystick_minor_number}" 2>/dev/null
+                    )"; then
+                        gow_log \
+                            "Registered ${joystick_node_path} as a udev joystick (${joystick_metadata_path})"
+                        joystick_found=1
+                    else
+                        gow_log "WARN: failed to register udev metadata for ${joystick_node_path}"
+                    fi
+                done
+                if [ "${joystick_found}" -ne 1 ]; then
+                    gow_log "WARN: InputPlumber joystick handler is not ready"
                     continue
                 fi
             fi
