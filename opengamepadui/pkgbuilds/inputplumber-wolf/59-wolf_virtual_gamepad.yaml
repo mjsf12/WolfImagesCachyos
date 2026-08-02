@@ -28,3 +28,11 @@ source_devices:
           value: "1"
       sys_name: "event*"
       subsystem: input
+
+# Create the desktop targets before Gamescope enumerates /dev/input. Profiles
+# decide whether events are routed to these targets; keeping them alive avoids
+# hotplugging devices that the isolated Wolf container cannot materialize via
+# udev after the session is already running.
+target_devices:
+  - mouse
+  - keyboard

@@ -31,6 +31,64 @@ start_daemon() {
     fi
 }
 
+materialize_inputplumber_desktop_targets() {
+    local attempt
+    local device_name
+    local device_number
+    local event_name
+    local event_path
+    local major_number
+    local minor_number
+    local node_path
+    local targets_found
+
+    # Wolf gives application containers a private /dev/input. InputPlumber can
+    # create uinput devices in the kernel, but there is no udev daemon here to
+    # create their event nodes in that private directory. Materialize the two
+    # desktop targets before Gamescope starts and enumerates input devices.
+    for attempt in $(seq 1 50); do
+        targets_found=0
+        for event_path in /sys/class/input/event*; do
+            [ -e "${event_path}" ] || continue
+            device_name="$(cat "${event_path}/device/name" 2>/dev/null || true)"
+            case "${device_name}" in
+                "InputPlumber Mouse"|"InputPlumber Keyboard") ;;
+                *) continue ;;
+            esac
+
+            event_name="${event_path##*/}"
+            device_number="$(cat "${event_path}/dev" 2>/dev/null || true)"
+            case "${device_number}" in
+                *:*) ;;
+                *) continue ;;
+            esac
+            major_number="${device_number%%:*}"
+            minor_number="${device_number##*:}"
+            node_path="/dev/input/${event_name}"
+
+            if [ ! -e "${node_path}" ]; then
+                if mknod "${node_path}" c "${major_number}" "${minor_number}"; then
+                    chmod 0666 "${node_path}"
+                    gow_log "Created ${node_path} for ${device_name}"
+                else
+                    gow_log "WARN: failed to create ${node_path} for ${device_name}"
+                    continue
+                fi
+            fi
+            targets_found=$((targets_found + 1))
+        done
+
+        if [ "${targets_found}" -ge 2 ]; then
+            gow_log "InputPlumber desktop input targets are ready"
+            return 0
+        fi
+        sleep 0.1
+    done
+
+    gow_log "WARN: InputPlumber desktop input targets were not ready before Gamescope startup"
+    return 1
+}
+
 maintain_inputplumber_menu_intercept() {
     local current_mode
     local device_name
@@ -116,6 +174,7 @@ if [ "${START_INPUTPLUMBER:-1}" = "1" ]; then
     # /dev/input already exists, so create the empty directory first.
     mkdir -p /dev/input
     start_daemon inputplumber inputplumber
+    materialize_inputplumber_desktop_targets || true
     maintain_inputplumber_menu_intercept &
 fi
 
