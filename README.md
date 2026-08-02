@@ -210,6 +210,8 @@ profile. The image installs a patched InputPlumber 0.78.0 build that:
 - recognizes the `Wolf X-Box One`, `Wolf PS5`, `Wolf DualSense`, and
   `Wolf Nintendo` virtual controllers plus the motion sensor;
 - creates the `/dev/input` watcher before Wolf connects a controller;
+- adds the dynamic session user to InputPlumber's polkit-authorized group before
+  its final login, allowing intercept, profile, target, and mouse D-Bus writes;
 - exposes the controller to OpenGamepadUI over D-Bus without `EVIOCGRAB`, so
   the same controller remains available after a game starts;
 - enables D-Bus interception when a new composite controller starts in mode
@@ -242,8 +244,10 @@ mouse mode is disabled. Its quick-bar page controls the current mode, generic
 shortcut, automatic launcher activation, and pointer speed. Every route change
 is written to the live InputPlumber composite captured from the device-added
 signal, even if OpenGamepadUI's local device cache is temporarily empty or
-already reports that mode. Eighteen additional tests validate the chord, route,
-and desktop profile. The plugin registers its procedural
+already reports that mode. The plugin reads the live D-Bus property back, so a
+silently denied route change is reported as a failure instead of success.
+Nineteen additional tests validate the chord, route, authorization failure, and
+desktop profile. The plugin registers its procedural
 Quick Bar page with an explicit title, avoiding OpenGamepadUI
 0.46.0's unsafe legacy `SectionLabel` lookup.
 

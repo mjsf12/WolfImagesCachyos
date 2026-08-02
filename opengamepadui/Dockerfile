@@ -149,8 +149,15 @@ COPY session/gamescope-session-opengamepadui.desktop \
     /usr/share/wayland-sessions/gamescope-session-opengamepadui.desktop
 
 COPY --chmod=755 scripts/init-services.sh /etc/cont-init.d/50-opengamepadui-services
+COPY --chmod=755 scripts/authorize-inputplumber-user.sh /opt/gow/authorize-inputplumber-user
 COPY --chmod=755 scripts/inputplumber_x11_bridge.py /opt/gow/inputplumber_x11_bridge.py
-RUN bash -n /etc/cont-init.d/50-opengamepadui-services
+RUN bash -n /etc/cont-init.d/50-opengamepadui-services && \
+    bash -n /opt/gow/authorize-inputplumber-user && \
+    useradd --system --no-create-home ogui-polkit-test && \
+    /opt/gow/authorize-inputplumber-user ogui-polkit-test && \
+    /opt/gow/authorize-inputplumber-user ogui-polkit-test && \
+    id -nG ogui-polkit-test | tr ' ' '\n' | grep -qx inputplumber && \
+    userdel ogui-polkit-test
 COPY --chmod=755 scripts/startup.sh /opt/gow/startup.sh
 
 # ---------------------------------------------------------------------------

@@ -3,6 +3,11 @@ set -u
 
 source /opt/gow/bash-lib/utils.sh
 
+# The official InputPlumber polkit policy requires this group for profile,
+# intercept, target and mouse D-Bus mutations. Run after the base entrypoint's
+# device-group setup so its usermod -G cannot remove this membership again.
+/opt/gow/authorize-inputplumber-user "${UNAME:-gow}"
+
 start_daemon() {
     local process_name="$1"
     local executable="$2"
@@ -33,6 +38,7 @@ start_daemon() {
 
 start_inputplumber_x11_bridge() {
     local bridge=/opt/gow/inputplumber_x11_bridge.py
+    local session_user="${UNAME:-gow}"
 
     if [ ! -x "${bridge}" ]; then
         gow_log "WARN: InputPlumber X11 bridge is not installed"
@@ -46,7 +52,7 @@ start_inputplumber_x11_bridge() {
     # Xwayland authorizes local clients by UID. Run as the session user and let
     # the bridge wait for Gamescope to create display :1.
     gow_log "Starting InputPlumber X11 desktop bridge..."
-    runuser -u gow -- env DISPLAY=:1 "${bridge}" :1 &
+    runuser -u "${session_user}" -- env DISPLAY=:1 "${bridge}" :1 &
     gow_log "InputPlumber X11 desktop bridge started (pid $!)"
 }
 

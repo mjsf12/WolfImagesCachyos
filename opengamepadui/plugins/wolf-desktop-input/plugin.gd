@@ -325,7 +325,10 @@ func _sync_intercept_mode() -> void:
 		mode,
 	)
 	if writes == 0:
-		logger.warn("No live InputPlumber composites available for route reconciliation")
+		logger.warn(
+			"InputPlumber did not confirm the route on any live composite; "
+			+ "check D-Bus authorization and device discovery"
+		)
 	if mode == _last_intercept_mode:
 		return
 	_last_intercept_mode = mode

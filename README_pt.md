@@ -210,19 +210,22 @@ A imagem instala uma compilação corrigida do InputPlumber 0.78.0 que:
 - reconhece os controles virtuais `Wolf X-Box One`, `Wolf PS5`,
   `Wolf DualSense`, `Wolf Nintendo` e o sensor de movimento;
 - cria o observador de `/dev/input` antes que o Wolf conecte o controle;
+- adiciona o usuário dinâmico da sessão ao grupo autorizado pelo polkit do
+  InputPlumber antes do login final, liberando mudanças de rota, perfil, alvos
+  e mouse pelo D-Bus;
 - entrega o controle ao OpenGamepadUI por D-Bus sem aplicar `EVIOCGRAB`, de
   forma que o mesmo controle continue disponível quando o jogo abrir;
 - ativa o modo de interceptação D-Bus quando um controle composto nasce em
   modo `0`, sem impedir que o OpenGamepadUI use o modo de jogo `1`.
 
-O build também corrige a descoberta de janelas do OpenGamepadUI 0.45.1. O
+O build também corrige a descoberta de janelas do OpenGamepadUI 0.46.0. O
 Gamescope publica janelas X11 focáveis em blocos `[window_id, app_id, pid]`; o
 launcher corrigido usa esse AppId como fallback quando Bottles, Heroic, Lutris
 ou outro launcher intermediário remove `OGUI_ID` do processo do jogo. Ao fechar
 o último jogo, o patch também desativa `STEAM_OVERLAY` e restaura a lista de
 baselayer do Gamescope; isso evita que o menu continue transparente sobre uma
-tela preta. Sete testes headless do Godot validam a descoberta e as transições
-de estado durante o build da imagem.
+tela preta. Doze testes headless do Godot validam a descoberta, o ciclo de vida
+e as transições de estado durante o build da imagem.
 
 A imagem também instala o plugin `Wolf Desktop Input`. Para controles genéricos
 do Moonlight, ele converte `Start + Select` em um botão Guide virtual. Soltar o
@@ -232,10 +235,12 @@ desktop, o analógico direito move o ponteiro, `A`/RT fazem clique esquerdo,
 `B`/LT fazem clique direito e os bumpers rolam a página. O perfil anterior do
 jogo é restaurado ao sair do modo mouse. A barra rápida permite alterar o modo,
 o atalho genérico, a ativação automática para launchers e a velocidade do
-ponteiro. O plugin registra sua página procedural com um título explícito na
+ponteiro. Cada mudança de rota é confirmada relendo a propriedade D-Bus real;
+assim uma operação negada silenciosamente não é mais registrada como sucesso.
+Dezenove testes adicionais validam atalhos, rotas, falha de autorização e o
+perfil desktop. O plugin registra sua página procedural com um título explícito na
 barra rápida, evitando a busca legada insegura por `SectionLabel` do
-OpenGamepadUI 0.45.1. Testes adicionais validam o atalho, o perfil e esse
-registro.
+OpenGamepadUI 0.46.0.
 
 Compile a imagem com:
 

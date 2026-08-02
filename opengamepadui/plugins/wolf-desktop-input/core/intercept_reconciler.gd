@@ -4,6 +4,8 @@ extends RefCounted
 ## InputPlumber composite. The global resource can update its cached value
 ## without writing an already-created D-Bus device, so live devices must always
 ## receive the assignment even when their local wrapper reports the same mode.
+## Count only assignments confirmed by a fresh D-Bus property read: the OGUI
+## 0.46 Rust wrapper discards setter errors, including polkit authorization.
 
 
 static func apply_mode(input_plumber, devices: Array, mode: int) -> int:
@@ -13,7 +15,8 @@ static func apply_mode(input_plumber, devices: Array, mode: int) -> int:
 		if not is_instance_valid(device):
 			continue
 		device.intercept_mode = mode
-		writes += 1
+		if device.intercept_mode == mode:
+			writes += 1
 	return writes
 
 

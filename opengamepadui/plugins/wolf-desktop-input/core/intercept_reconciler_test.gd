@@ -21,6 +21,16 @@ class FakeCompositeDevice extends RefCounted:
 			writes += 1
 
 
+class DeniedCompositeDevice extends RefCounted:
+	var dbus_path := "/org/shadowblip/InputPlumber/CompositeDeviceDenied"
+	var attempts := 0
+	var intercept_mode := 2:
+		get:
+			return 2
+		set(_value):
+			attempts += 1
+
+
 func test_writes_the_global_and_live_composite_modes() -> void:
 	var input_plumber := FakeInputPlumber.new()
 	var device := FakeCompositeDevice.new()
@@ -43,6 +53,17 @@ func test_rewrites_live_composite_when_its_cached_mode_already_matches() -> void
 	InterceptReconciler.apply_mode(input_plumber, [device], 1)
 
 	assert_eq(device.writes, 2, "Every reconciliation must reach the real D-Bus device")
+
+
+func test_does_not_report_a_silently_denied_dbus_write_as_successful() -> void:
+	var input_plumber := FakeInputPlumber.new()
+	var device := DeniedCompositeDevice.new()
+
+	var writes := InterceptReconciler.apply_mode(input_plumber, [device], 1)
+
+	assert_eq(device.attempts, 1)
+	assert_eq(device.intercept_mode, 2)
+	assert_eq(writes, 0)
 
 
 func test_uses_signal_tracked_device_when_ogui_cache_is_empty() -> void:
