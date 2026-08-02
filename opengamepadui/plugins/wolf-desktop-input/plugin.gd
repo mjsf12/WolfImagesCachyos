@@ -217,6 +217,7 @@ func _set_desktop_mode(enabled: bool, show_notification: bool = true) -> void:
 		if enabled:
 			_apply_desktop_profile()
 		_refresh_menus()
+		_sync_intercept_mode.call_deferred()
 		return
 
 	_desktop_mode = enabled
@@ -232,6 +233,10 @@ func _set_desktop_mode(enabled: bool, show_notification: bool = true) -> void:
 			text = "Gamepad profile restored"
 		notification_manager.show(Notification.new(text))
 	logger.info("Desktop mode: " + str(enabled))
+	# A Guide + West/X desktop toggle does not open a popup. InputPlumber still
+	# enters interception while recognizing the activation chord, so explicitly
+	# restore the route after the deferred profile switch finishes.
+	_sync_intercept_mode.call_deferred()
 
 
 func _apply_desktop_profile() -> void:
@@ -299,8 +304,18 @@ func _sync_intercept_mode() -> void:
 		global_state_machine.has_state(in_game_state),
 		popup_state_machine.current_state() != null,
 	)
+	var repaired_device := false
 	input_plumber.set_intercept_mode(mode)
-	if mode == _last_intercept_mode:
+	# InputPlumberInstance's cached composite collection can miss the Wolf
+	# device even though the plugin already received it through device_added.
+	# Write every live D-Bus composite directly; this is the value that controls
+	# the exclusive evdev grab in the Wolf InputPlumber patch.
+	for device: CompositeDevice in input_plumber.get_composite_devices():
+		if device.intercept_mode == mode:
+			continue
+		device.intercept_mode = mode
+		repaired_device = true
+	if mode == _last_intercept_mode and not repaired_device:
 		return
 	_last_intercept_mode = mode
 	logger.info("Input route: " + ("game" if mode == 1 else "OpenGamepadUI"))
