@@ -26,7 +26,7 @@ def run(*args: str) -> str:
     return result.stdout.strip()
 
 
-def find_composite(timeout: float = 8.0) -> str:
+def find_composite(source_path: str, timeout: float = 8.0) -> str:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         tree = run("busctl", "--system", "--list", "tree", SERVICE)
@@ -44,7 +44,17 @@ def find_composite(timeout: float = 8.0) -> str:
                 "Name",
             )
             if "Wolf Virtual Gamepad" in name:
-                return path
+                sources = run(
+                    "busctl",
+                    "--system",
+                    "get-property",
+                    SERVICE,
+                    path,
+                    COMPOSITE_INTERFACE,
+                    "SourceDevicePaths",
+                )
+                if f'"{source_path}"' in sources:
+                    return path
         time.sleep(0.1)
     raise RuntimeError("Wolf Virtual Gamepad composite was not created")
 
@@ -184,7 +194,7 @@ def main() -> None:
         version=0x0517,
         bustype=ecodes.BUS_USB,
     ) as ui:
-        composite = find_composite()
+        composite = find_composite(ui.device.path)
         target = get_dbus_target(composite)
         orders = (
             ("start-select", (ecodes.BTN_START, ecodes.BTN_SELECT)),
