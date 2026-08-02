@@ -1,6 +1,9 @@
 extends Plugin
 
 const ShortcutState := preload("res://plugins/wolf-desktop-input/core/shortcut_state.gd")
+const DesktopTargetDevices := preload(
+	"res://plugins/wolf-desktop-input/core/desktop_target_devices.gd"
+)
 const QuickBarRegistration := preload(
 	"res://plugins/wolf-desktop-input/core/quick_bar_registration.gd"
 )
@@ -130,6 +133,8 @@ func _initialize_inputplumber() -> void:
 func _on_device_added(device: CompositeDevice) -> void:
 	_apply_activation(device)
 	_apply_activation.bind(device).call_deferred()
+	if _desktop_mode:
+		_apply_desktop_targets(device, true)
 	for target in device.dbus_devices:
 		var target_path := target.dbus_path as String
 		if _watched_targets.has(target_path):
@@ -226,6 +231,7 @@ func _apply_desktop_profile() -> void:
 	if not FileAccess.file_exists(USER_PROFILE):
 		logger.error("Desktop profile is unavailable: " + USER_PROFILE)
 		return
+	_set_desktop_targets(true)
 	launch_manager.set_gamepad_profile(USER_PROFILE)
 
 
@@ -233,8 +239,22 @@ func _restore_gamepad_profile() -> void:
 	var current_app := launch_manager.get_current_app()
 	if current_app:
 		launch_manager.set_app_gamepad_profile(current_app)
+	else:
+		launch_manager.set_gamepad_profile("")
+	_set_desktop_targets(false)
+
+
+func _set_desktop_targets(enabled: bool) -> void:
+	for device: CompositeDevice in input_plumber.get_composite_devices():
+		_apply_desktop_targets(device, enabled)
+
+
+func _apply_desktop_targets(device: CompositeDevice, enabled: bool) -> void:
+	if not DesktopTargetDevices.supports(device.name as String):
 		return
-	launch_manager.set_gamepad_profile("")
+	var targets := DesktopTargetDevices.for_mode(enabled)
+	device.set_target_devices(targets)
+	logger.info("Wolf virtual targets: " + str(targets))
 
 
 func _install_desktop_profile() -> void:

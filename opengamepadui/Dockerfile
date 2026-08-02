@@ -78,10 +78,12 @@ RUN curl --fail --location --retry 3 \
 
 COPY patches/opengamepadui-gamescope-appid-window-detection.patch /tmp/opengamepadui.patch
 COPY patches/opengamepadui-overlay-return.patch /tmp/opengamepadui-overlay-return.patch
+COPY patches/opengamepadui-overlay-menu.patch /tmp/opengamepadui-overlay-menu.patch
 COPY plugins/wolf-desktop-input /src/plugins/wolf-desktop-input
 COPY plugin-build/wolf-desktop-input-export.cfg /tmp/wolf-desktop-input-export.cfg
 RUN patch --strip=1 < /tmp/opengamepadui.patch && \
     patch --strip=1 < /tmp/opengamepadui-overlay-return.patch && \
+    patch --strip=1 < /tmp/opengamepadui-overlay-menu.patch && \
     sed -i 's|rootfs,sandbox,plugins,|rootfs,sandbox,plugins/*,|' \
         /src/export_presets.cfg && \
     cat /tmp/wolf-desktop-input-export.cfg >> /src/export_presets.cfg

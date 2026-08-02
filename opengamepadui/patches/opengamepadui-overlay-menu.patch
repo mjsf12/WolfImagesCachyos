@@ -1,0 +1,58 @@
+--- a/core/global/launch_manager.gd
++++ b/core/global/launch_manager.gd
+@@ -171,10 +171,14 @@
+ 			return
+ 
+ 		if _xwayland_ogui:
+-			logger.debug("Disabling STEAM_OVERLAY atom")
++			# Pushing an in-game menu emits state_exited even though in-game
++			# remains underneath it in the stack. Keep the frontend promoted as
++			# an overlay until the last running app actually removes that state.
++			var game_state_still_present := state_machine.has_state(in_game_state)
++			logger.debug("Updating STEAM_OVERLAY atom after in-game transition")
+ 			_xwayland_ogui.set_overlay(
+ 				_ogui_window_id,
+-				GamescopeSessionState.overlay_value(false),
++				GamescopeSessionState.overlay_value_after_exit(game_state_still_present),
+ 			)
+ 
+ 	in_game_state.state_entered.connect(on_game_state_entered)
+--- a/core/systems/gamescope/gamescope_session_state.gd
++++ b/core/systems/gamescope/gamescope_session_state.gd
+@@ -14,6 +14,12 @@
+ 	return OVERLAY_DISABLED
+ 
+ 
++## Keep the overlay enabled for temporary transitions to an in-game popup.
++## Disable it only after the in-game state was removed from the stack.
++static func overlay_value_after_exit(game_state_still_present: bool) -> int:
++	return overlay_value(game_state_still_present)
++
++
+ ## Return the idle baselayer list, without AppIDs from exited games.
+ static func default_baselayer_apps(
+ 		extra_unknown_app_id: int,
+--- a/core/systems/gamescope/gamescope_session_state_test.gd
++++ b/core/systems/gamescope/gamescope_session_state_test.gd
+@@ -9,12 +9,20 @@
+ 
+ func test_disables_overlay_after_last_game_exits() -> void:
+ 	assert_eq(
+-		SessionState.overlay_value(false),
++		SessionState.overlay_value_after_exit(false),
+ 		0,
+ 		"The menu must become a normal Gamescope window again",
+ 	)
+ 
+ 
++func test_keeps_overlay_visible_when_an_in_game_menu_is_pushed() -> void:
++	assert_eq(
++		SessionState.overlay_value_after_exit(true),
++		1,
++		"A popup must not hide the frontend behind the running game",
++	)
++
++
+ func test_restores_idle_baselayer_apps_after_last_game_exits() -> void:
+ 	var actual := SessionState.default_baselayer_apps(413091, 769)
+ 
