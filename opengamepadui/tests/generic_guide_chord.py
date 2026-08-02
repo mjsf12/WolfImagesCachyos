@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import threading
@@ -103,6 +104,33 @@ def configure_chord(composite: str, mode: int) -> None:
     )
 
 
+def load_profile(composite: str, profile_path: str, expected_name: str) -> None:
+    run(
+        "busctl",
+        "--system",
+        "call",
+        SERVICE,
+        composite,
+        COMPOSITE_INTERFACE,
+        "LoadProfilePath",
+        "s",
+        profile_path,
+    )
+    actual_name = run(
+        "busctl",
+        "--system",
+        "get-property",
+        SERVICE,
+        composite,
+        COMPOSITE_INTERFACE,
+        "ProfileName",
+    )
+    if f'"{expected_name}"' not in actual_name:
+        raise AssertionError(
+            f"profile {profile_path} was not accepted: {actual_name}"
+        )
+
+
 def capture_chord(
     ui: UInput,
     target: str,
@@ -196,6 +224,10 @@ def main() -> None:
     ) as ui:
         composite = find_composite(ui.device.path)
         target = get_dbus_target(composite)
+        test_profile = os.environ.get("INPUTPLUMBER_TEST_PROFILE", "")
+        if test_profile:
+            load_profile(composite, test_profile, "Wolf Desktop Mouse")
+            print(f"PASS desktop profile accepted: {test_profile}")
         orders = (
             ("start-select", (ecodes.BTN_START, ecodes.BTN_SELECT)),
             ("select-start", (ecodes.BTN_SELECT, ecodes.BTN_START)),

@@ -8,6 +8,9 @@ const InterceptReconciler := preload(
 const ProfileReconciler := preload(
 	"res://plugins/wolf-desktop-input/core/profile_reconciler.gd"
 )
+const DesktopModePolicy := preload(
+	"res://plugins/wolf-desktop-input/core/desktop_mode_policy.gd"
+)
 const QuickBarRegistration := preload(
 	"res://plugins/wolf-desktop-input/core/quick_bar_registration.gd"
 )
@@ -368,7 +371,12 @@ func _sync_intercept_mode() -> void:
 
 func _on_app_launched(app: RunningApp) -> void:
 	_sync_intercept_mode.call_deferred()
-	if not _auto_launchers or not _is_desktop_launcher(app):
+	var desktop_launcher := _is_desktop_launcher(app)
+	if DesktopModePolicy.should_restore_for_app(_desktop_mode, desktop_launcher):
+		_auto_owned = false
+		_set_desktop_mode(false, false)
+		return
+	if not _auto_launchers or not desktop_launcher:
 		return
 	_auto_owned = true
 	_set_desktop_mode(true, true)
@@ -379,7 +387,12 @@ func _on_app_switched(_from: RunningApp, to: RunningApp) -> void:
 	# the route on the next frame so that late profile work cannot retain the
 	# frontend's exclusive grab.
 	_sync_intercept_mode.call_deferred()
-	if _auto_launchers and _is_desktop_launcher(to):
+	var desktop_launcher := _is_desktop_launcher(to)
+	if DesktopModePolicy.should_restore_for_app(_desktop_mode, desktop_launcher):
+		_auto_owned = false
+		_set_desktop_mode(false, false)
+		return
+	if _auto_launchers and desktop_launcher:
 		_auto_owned = true
 		_set_desktop_mode(true, false)
 		return

@@ -171,6 +171,14 @@ maintain_inputplumber_menu_intercept() {
                 continue
             fi
 
+            # Rewriting activation while Start/Select are physically held can
+            # restart InputPlumber's chord state and leave interception stuck.
+            # Configure each composite once; the plugin performs its own late
+            # startup write after Card UI has initialized.
+            if [ -n "${generic_chord_configured[${device_path}]:-}" ]; then
+                continue
+            fi
+
             if timeout 2 busctl --system call \
                 org.shadowblip.InputPlumber \
                 "${device_path}" \
@@ -179,10 +187,8 @@ maintain_inputplumber_menu_intercept() {
                 Gamepad:Button:Start \
                 Gamepad:Button:Select \
                 Gamepad:Button:Guide >/dev/null 2>&1; then
-                if [ -z "${generic_chord_configured[${device_path}]:-}" ]; then
-                    generic_chord_configured["${device_path}"]=1
-                    gow_log "Enabled generic Guide chord for ${device_path}"
-                fi
+                generic_chord_configured["${device_path}"]=1
+                gow_log "Enabled generic Guide chord for ${device_path}"
             fi
         done < <(
             timeout 2 busctl --system --list tree \

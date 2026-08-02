@@ -237,7 +237,7 @@ jogo é restaurado ao sair do modo mouse. A barra rápida permite alterar o modo
 o atalho genérico, a ativação automática para launchers e a velocidade do
 ponteiro. Cada mudança de rota é confirmada relendo a propriedade D-Bus real;
 assim uma operação negada silenciosamente não é mais registrada como sucesso.
-Vinte e dois testes adicionais validam atalhos, rotas, serialização de perfil,
+Vinte e cinco testes adicionais validam atalhos, rotas, transição para jogos, serialização de perfil,
 falha de autorização e o perfil desktop. O plugin registra sua página procedural com um título explícito na
 barra rápida, evitando a busca legada insegura por `SectionLabel` do
 OpenGamepadUI 0.46.0.

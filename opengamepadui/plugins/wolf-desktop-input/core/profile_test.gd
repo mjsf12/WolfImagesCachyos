@@ -40,5 +40,10 @@ func test_desktop_profile_preserves_global_shortcuts() -> void:
 
 	assert_eq(targets["Guide"][0]["dbus"], "ui_guide")
 	assert_eq(targets["Quick Access"][0]["dbus"], "ui_quick")
+	assert_eq(
+		targets["Desktop Toggle"][0]["dbus"],
+		"ui_action",
+		"The same chord must be able to leave desktop mode",
+	)
 	assert_false("Start" in source_buttons, "Start must remain available to the Guide chord")
 	assert_false("Select" in source_buttons, "Select must remain available to the Guide chord")

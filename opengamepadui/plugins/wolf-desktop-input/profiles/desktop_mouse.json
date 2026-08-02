@@ -15,6 +15,11 @@
 			"target_events": [{"dbus": "ui_quick"}]
 		},
 		{
+			"name": "Desktop Toggle",
+			"source_event": {"gamepad": {"button": "West"}},
+			"target_events": [{"dbus": "ui_action"}]
+		},
+		{
 			"name": "Joystick Mouse",
 			"source_event": {
 				"gamepad": {"axis": {"name": "RightStick"}}

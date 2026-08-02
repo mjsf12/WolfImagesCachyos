@@ -246,7 +246,7 @@ is written to the live InputPlumber composite captured from the device-added
 signal, even if OpenGamepadUI's local device cache is temporarily empty or
 already reports that mode. The plugin reads the live D-Bus property back, so a
 silently denied route change is reported as a failure instead of success.
-Twenty-two additional tests validate the chord, route, profile serialization,
+Twenty-five additional tests validate the chord, route, app-transition policy, profile serialization,
 authorization failure, and desktop profile. The plugin registers its procedural
 Quick Bar page with an explicit title, avoiding OpenGamepadUI
 0.46.0's unsafe legacy `SectionLabel` lookup.
