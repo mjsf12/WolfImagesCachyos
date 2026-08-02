@@ -33,6 +33,10 @@ class DiagnosticsHelpersTest(unittest.TestCase):
             DIAGNOSTICS.device_kind("InputPlumber Keyboard"),
             "target_keyboard",
         )
+        self.assertEqual(
+            DIAGNOSTICS.device_kind("Microsoft Xbox Series S|X Controller"),
+            "target_gamepad",
+        )
 
     def test_filters_relevant_source_and_mouse_events(self):
         self.assertTrue(
@@ -56,6 +60,13 @@ class DiagnosticsHelpersTest(unittest.TestCase):
                 DIAGNOSTICS.ecodes.REL_X,
             )
         )
+        self.assertTrue(
+            DIAGNOSTICS.should_trace_event(
+                "target_gamepad",
+                DIAGNOSTICS.ecodes.EV_ABS,
+                DIAGNOSTICS.ecodes.ABS_X,
+            )
+        )
         self.assertFalse(
             DIAGNOSTICS.should_trace_event(
                 "target_mouse",
@@ -66,11 +77,14 @@ class DiagnosticsHelpersTest(unittest.TestCase):
 
     def test_parses_composite_property_snapshot_in_request_order(self):
         actual = DIAGNOSTICS.parse_property_lines(
-            'u 1\ns "Wolf Desktop Mouse"\nas 2 "mouse" "keyboard"\nas 1 "event9"'
+            'u 3\ns "Wolf Desktop Mouse"\nas 3 "gamepad" "mouse" "keyboard"\nas 1 "event9"'
         )
-        self.assertEqual(actual["intercept_mode"], "u 1")
+        self.assertEqual(actual["intercept_mode"], "u 3")
         self.assertEqual(actual["profile_name"], 's "Wolf Desktop Mouse"')
-        self.assertEqual(actual["target_devices"], 'as 2 "mouse" "keyboard"')
+        self.assertEqual(
+            actual["target_devices"],
+            'as 3 "gamepad" "mouse" "keyboard"',
+        )
         self.assertEqual(actual["source_devices"], 'as 1 "event9"')
 
     def test_rotates_trace_without_losing_new_events(self):

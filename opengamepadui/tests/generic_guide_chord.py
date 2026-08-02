@@ -289,7 +289,11 @@ def main() -> None:
             ("start-select", (ecodes.BTN_START, ecodes.BTN_SELECT)),
             ("select-start", (ecodes.BTN_SELECT, ecodes.BTN_START)),
         )
-        for mode_name, mode in (("menu/always", 2), ("game/pass", 1)):
+        for mode_name, mode in (
+            ("menu/always", 2),
+            ("game/pass", 1),
+            ("desktop/gamepad-only", 3),
+        ):
             for order_name, order in orders:
                 case_name = f"{mode_name}/{order_name}"
                 configure_chord(composite, mode)

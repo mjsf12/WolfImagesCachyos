@@ -152,14 +152,18 @@ COPY session/gamescope-session-opengamepadui.desktop \
 
 COPY --chmod=755 scripts/init-services.sh /etc/cont-init.d/50-opengamepadui-services
 COPY --chmod=755 scripts/authorize-inputplumber-user.sh /opt/gow/authorize-inputplumber-user
-COPY --chmod=755 scripts/inputplumber_x11_bridge.py /opt/gow/inputplumber_x11_bridge.py
+COPY scripts/inputplumber_gamescope_bridge.c /tmp/inputplumber_gamescope_bridge.c
 COPY --chmod=755 scripts/inputplumber_diagnostics.py /opt/gow/inputplumber_diagnostics.py
-COPY tests/test_inputplumber_x11_bridge.py /tmp/test_inputplumber_x11_bridge.py
 COPY tests/test_inputplumber_diagnostics.py /tmp/test_inputplumber_diagnostics.py
-RUN bash -n /etc/cont-init.d/50-opengamepadui-services && \
+RUN cc -std=c11 -O2 -Wall -Wextra -Werror \
+        $(pkg-config --cflags libei-1.0) \
+        /tmp/inputplumber_gamescope_bridge.c \
+        -o /opt/gow/inputplumber-gamescope-bridge \
+        $(pkg-config --libs libei-1.0) && \
+    rm -f /tmp/inputplumber_gamescope_bridge.c && \
+    /opt/gow/inputplumber-gamescope-bridge --self-test && \
+    bash -n /etc/cont-init.d/50-opengamepadui-services && \
     bash -n /opt/gow/authorize-inputplumber-user && \
-    INPUTPLUMBER_X11_BRIDGE=/opt/gow/inputplumber_x11_bridge.py \
-        python3 /tmp/test_inputplumber_x11_bridge.py && \
     INPUTPLUMBER_DIAGNOSTICS=/opt/gow/inputplumber_diagnostics.py \
         python3 /tmp/test_inputplumber_diagnostics.py && \
     useradd --system --no-create-home ogui-polkit-test && \
@@ -167,8 +171,7 @@ RUN bash -n /etc/cont-init.d/50-opengamepadui-services && \
     /opt/gow/authorize-inputplumber-user ogui-polkit-test && \
     id -nG ogui-polkit-test | tr ' ' '\n' | grep -qx inputplumber && \
     userdel ogui-polkit-test && \
-    rm -f /tmp/test_inputplumber_x11_bridge.py \
-        /tmp/test_inputplumber_diagnostics.py
+    rm -f /tmp/test_inputplumber_diagnostics.py
 COPY --chmod=755 scripts/startup.sh /opt/gow/startup.sh
 
 # ---------------------------------------------------------------------------

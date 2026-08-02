@@ -431,8 +431,8 @@ func _install_desktop_profile() -> void:
 func _on_popup_state_changed(_from: State, to: State) -> void:
 	_trace("popup_state_changed", {"to": _state_name(to)})
 	# The generic Guide chord enters interception before the popup transition.
-	# Reconcile after every popup change so closing an overlay always ungrabs the
-	# physical Wolf gamepad and returns control to the running game.
+	# Reconcile after every popup change so closing an overlay returns events to
+	# the appropriate InputPlumber target without exposing the physical source.
 	_sync_intercept_mode.bind("popup_state_changed").call_deferred()
 	# InputManager loads the global profile while a Guide menu is open. Restore
 	# desktop input only after the popup closes so its UI remains navigable.
@@ -452,6 +452,7 @@ func _sync_intercept_mode(reason: String = "unspecified") -> void:
 	var mode := InterceptPolicy.desired_mode(
 		global_state_machine.has_state(in_game_state),
 		popup_state_machine.current_state() != null,
+		_desktop_mode,
 	)
 	# Always write every live composite. OpenGamepadUI 0.46 can update the local
 	# wrapper cache while the real D-Bus device remains in the previous mode.
@@ -477,9 +478,14 @@ func _sync_intercept_mode(reason: String = "unspecified") -> void:
 	if mode == _last_intercept_mode:
 		return
 	_last_intercept_mode = mode
+	var route_name := "OpenGamepadUI"
+	if mode == InterceptPolicy.INTERCEPT_MODE_PASS:
+		route_name = "gamepad target"
+	elif mode == InterceptPolicy.INTERCEPT_MODE_GAMEPAD_ONLY:
+		route_name = "desktop mouse target"
 	logger.info(
 		"Input route: "
-		+ ("game" if mode == 1 else "OpenGamepadUI")
+		+ route_name
 		+ " (devices: "
 		+ str(writes)
 		+ ")"
@@ -506,9 +512,17 @@ func _on_app_switched(from: RunningApp, to: RunningApp) -> void:
 		"to": _app_name(to),
 	})
 	# LaunchManager applies the selected game profile after app_switched. Reassert
-	# the route on the next frame so that late profile work cannot retain the
-	# frontend's exclusive grab.
+	# the route on the next frame so late profile work cannot retain frontend
+	# interception.
 	_sync_intercept_mode.bind("app_switched").call_deferred()
+	# Gamescope can report a focus transition between two windows owned by the
+	# same launcher/game. LaunchManager emits app_switched even though the user
+	# never left the app; do not tear down desktop mode in that no-op transition.
+	if DesktopModePolicy.is_same_app_name(_app_name(from), _app_name(to)):
+		_trace("app_switch_same_ignored", {"app": _app_name(to)})
+		if _desktop_mode:
+			_apply_desktop_profile.bind("same_app_switched").call_deferred()
+		return
 	var desktop_launcher := _is_desktop_launcher(to)
 	if DesktopModePolicy.should_restore_for_app(_desktop_mode, desktop_launcher):
 		_auto_owned = false

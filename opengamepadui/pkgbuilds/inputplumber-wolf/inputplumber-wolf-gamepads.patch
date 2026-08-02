@@ -14,67 +14,21 @@ index afc9f31..7ecf2ac 100644
      "MSI WMI hotkeys",
  ];
  
-diff --git a/src/input/source/evdev.rs b/src/input/source/evdev.rs
-index 8ad3b05..e642e26 100644
---- a/src/input/source/evdev.rs
-+++ b/src/input/source/evdev.rs
-@@ -144,7 +144,8 @@ impl EventDevice {
-                 Ok(Self::Blocked(source_device))
-             }
-             DriverType::Gamepad => {
--                let device = GamepadEventDevice::new(device_info.clone(), capability_map)?;
-+                let device =
-+                    GamepadEventDevice::new(device_info.clone(), &conf, capability_map)?;
-                 let source_device =
-                     SourceDriver::new(composite_device, device, device_info.into(), conf);
-                 Ok(Self::Gamepad(source_device))
-diff --git a/src/input/source/evdev/gamepad.rs b/src/input/source/evdev/gamepad.rs
-index 1204e55..c84721d 100644
---- a/src/input/source/evdev/gamepad.rs
-+++ b/src/input/source/evdev/gamepad.rs
-@@ -17,6 +17,7 @@ use crate::drivers::steam_deck::hid_report::{
- use crate::input::event::evdev::translator::EventTranslator;
- use crate::input::output_capability::{Haptic, OutputCapability, LED};
- use crate::{
-+    config::SourceDevice,
-     drivers::dualsense::hid_report::SetStatePackedOutputData,
-     input::{
-         capability::{Capability, Gamepad, GamepadAxis, GamepadButton},
-@@ -43,12 +44,19 @@ impl GamepadEventDevice {
-     /// Create a new [Gamepad] source device from the given udev info
-     pub fn new(
-         device_info: UdevDevice,
-+        config: &Option<SourceDevice>,
-         capability_map: Option<CapabilityMapConfigV2>,
-     ) -> Result<Self, Box<dyn Error + Send + Sync>> {
-         let path = device_info.devnode();
-         log::debug!("Opening device at: {}", path);
-         let mut device = Device::open(path.clone())?;
--        device.grab()?;
-+
-+        // Wolf keeps its source gamepad visible to games in the same isolated
-+        // container. The D-Bus target still forwards its events to OpenGamepadUI.
-+        let should_passthru = config.as_ref().and_then(|c| c.passthrough).unwrap_or(false);
-+        if !should_passthru {
-+            device.grab()?;
-+        }
- 
-         // Set the device to do non-blocking reads
-         // TODO: use epoll to wake up when data is available
 diff --git a/src/input/composite_device/mod.rs b/src/input/composite_device/mod.rs
 index fd2fdd7..733aa59 100644
 --- a/src/input/composite_device/mod.rs
 +++ b/src/input/composite_device/mod.rs
-@@ -937 +937,7 @@ impl CompositeDevice {
+@@ -937 +937,8 @@ impl CompositeDevice {
 -        let intercept = self.intercept_mode == InterceptMode::Pass;
 +        // Multi-button activation chords emulate a button that the physical
 +        // controller does not have (for example Start + Select as Guide).
-+        // Keep recognizing those chords after the frontend has entered
-+        // Always mode so they also work from OpenGamepadUI's own menus.
++        // Keep recognizing those chords after the frontend has entered an
++        // interception mode so they work in menus and desktop-mouse mode.
 +        let intercept = self.intercept_mode == InterceptMode::Pass
-+            || (self.intercept_mode == InterceptMode::Always
++            || ((self.intercept_mode == InterceptMode::Always
++                || self.intercept_mode == InterceptMode::GamepadOnly)
 +                && self.intercept_activation_caps.len() > 1);
-@@ -1028 +1034,7 @@ impl CompositeDevice {
+@@ -1028 +1035,7 @@ impl CompositeDevice {
 -        if self.intercept_active_inputs.is_empty() && cap == first_cap {
 +        let guide_capability = Capability::Gamepad(Gamepad::Button(GamepadButton::Guide));
 +        let emulates_missing_guide = self.intercept_mode_target_cap == guide_capability
@@ -83,7 +37,7 @@ index fd2fdd7..733aa59 100644
 +            && (cap == first_cap
 +                || (emulates_missing_guide && self.intercept_activation_caps.contains(cap)))
 +        {
-@@ -2050,33 +2062,41 @@ impl CompositeDevice {
+@@ -2050,33 +2063,41 @@ impl CompositeDevice {
                  // We must have a match, we are of the correct length and all capabilities matched.
                  log::debug!("Found activation chord!");
 -                for c in self.intercept_activation_caps.clone() {
@@ -142,12 +96,13 @@ index fd2fdd7..733aa59 100644
                      let index = self
                          .intercept_active_inputs
                          .iter()
-@@ -2090,7 +2110,10 @@ impl CompositeDevice {
+@@ -2090,7 +2111,11 @@ impl CompositeDevice {
                      return Ok(true);
                  }
              }
 -        } else if !self.intercept_active_inputs.is_empty() && is_pressed {
-+        } else if self.intercept_mode == InterceptMode::Pass
++        } else if (self.intercept_mode == InterceptMode::Pass
++            || self.intercept_mode == InterceptMode::GamepadOnly)
 +            && !self.intercept_active_inputs.is_empty()
 +            && is_pressed
 +        {

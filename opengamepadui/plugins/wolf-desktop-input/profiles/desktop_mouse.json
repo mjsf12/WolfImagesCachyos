@@ -3,6 +3,7 @@
 	"kind": "DeviceProfile",
 	"name": "Wolf Desktop Mouse",
 	"description": "Right-stick mouse and desktop clicks for launchers",
+	"target_devices": ["xbox-series", "mouse", "keyboard"],
 	"mapping": [
 		{
 			"name": "Guide",
@@ -81,6 +82,26 @@
 			"name": "DPad Right",
 			"source_event": {"gamepad": {"button": "DPadRight"}},
 			"target_events": [{"keyboard": "KeyRight"}]
+		},
+		{
+			"name": "Block Left Stick",
+			"source_event": {"gamepad": {"axis": {"name": "LeftStick"}}},
+			"target_events": []
+		},
+		{
+			"name": "Block North",
+			"source_event": {"gamepad": {"button": "North"}},
+			"target_events": []
+		},
+		{
+			"name": "Block Left Stick Click",
+			"source_event": {"gamepad": {"button": "LeftStick"}},
+			"target_events": []
+		},
+		{
+			"name": "Block Right Stick Click",
+			"source_event": {"gamepad": {"button": "RightStick"}},
+			"target_events": []
 		}
 	]
 }

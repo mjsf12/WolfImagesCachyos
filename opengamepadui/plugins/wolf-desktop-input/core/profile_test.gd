@@ -8,6 +8,7 @@ func test_desktop_profile_has_required_mouse_mappings() -> void:
 	assert_not_null(file)
 	var profile = JSON.parse_string(file.get_as_text())
 	assert_typeof(profile, TYPE_DICTIONARY)
+	assert_eq(profile["target_devices"], ["xbox-series", "mouse", "keyboard"])
 
 	var targets := {}
 	for mapping: Dictionary in profile["mapping"]:
@@ -24,6 +25,8 @@ func test_desktop_profile_has_required_mouse_mappings() -> void:
 	assert_eq(targets["Left Trigger Right Click"][0]["mouse"]["button"], "Right")
 	assert_eq(targets["Right Bumper Scroll Up"][0]["mouse"]["button"], "WheelUp")
 	assert_eq(targets["Left Bumper Scroll Down"][0]["mouse"]["button"], "WheelDown")
+	assert_true(targets["Block Left Stick"].is_empty())
+	assert_true(targets["Block North"].is_empty())
 
 
 func test_desktop_profile_preserves_global_shortcuts() -> void:

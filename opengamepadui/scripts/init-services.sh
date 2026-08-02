@@ -36,24 +36,30 @@ start_daemon() {
     fi
 }
 
-start_inputplumber_x11_bridge() {
-    local bridge=/opt/gow/inputplumber_x11_bridge.py
+start_inputplumber_gamescope_bridge() {
+    local bridge=/opt/gow/inputplumber-gamescope-bridge
+    local eis_socket="${INPUTPLUMBER_EIS_SOCKET:-gamescope-0-ei}"
+    local runtime_dir="${XDG_RUNTIME_DIR:-/run/user/wolf}"
     local session_user="${UNAME:-gow}"
 
     if [ ! -x "${bridge}" ]; then
-        gow_log "WARN: InputPlumber X11 bridge is not installed"
+        gow_log "WARN: InputPlumber Gamescope bridge is not installed"
         return
     fi
     if pgrep -f "${bridge}" >/dev/null 2>&1; then
-        gow_log "InputPlumber X11 bridge is already running"
+        gow_log "InputPlumber Gamescope EIS bridge is already running"
         return
     fi
 
-    # Xwayland authorizes local clients by UID. Run as the session user and let
-    # the bridge wait for Gamescope to create display :1.
-    gow_log "Starting InputPlumber X11 desktop bridge..."
-    runuser -u "${session_user}" -- env DISPLAY=:1 "${bridge}" :1 &
-    gow_log "InputPlumber X11 desktop bridge started (pid $!)"
+    # Gamescope creates its EIS socket after this init hook. The bridge retries
+    # until that socket exists, then forwards real relative pointer/keyboard
+    # events to Gamescope's seat instead of warping an X11 cursor.
+    gow_log "Starting InputPlumber Gamescope EIS bridge..."
+    runuser -u "${session_user}" -- env \
+        XDG_RUNTIME_DIR="${runtime_dir}" \
+        LIBEI_SOCKET="${eis_socket}" \
+        "${bridge}" &
+    gow_log "InputPlumber Gamescope EIS bridge started (pid $!)"
 }
 
 start_inputplumber_diagnostics() {
@@ -81,7 +87,7 @@ start_inputplumber_diagnostics() {
     gow_log "Wolf input diagnostics started (pid $!)"
 }
 
-materialize_inputplumber_desktop_targets() {
+materialize_inputplumber_targets() {
     local attempt
     local device_name
     local device_number
@@ -94,15 +100,17 @@ materialize_inputplumber_desktop_targets() {
 
     # Wolf gives application containers a private /dev/input. InputPlumber can
     # create uinput devices in the kernel, but there is no udev daemon here to
-    # create their event nodes in that private directory. Materialize the two
-    # desktop targets before Gamescope starts and enumerates input devices.
+    # create their event nodes in that private directory. Materialize all three
+    # targets before Gamescope starts and enumerates input devices.
     for attempt in $(seq 1 50); do
         targets_found=0
         for event_path in /sys/class/input/event*; do
             [ -e "${event_path}" ] || continue
             device_name="$(cat "${event_path}/device/name" 2>/dev/null || true)"
             case "${device_name}" in
-                "InputPlumber Mouse"|"InputPlumber Keyboard") ;;
+                "InputPlumber Mouse"|\
+                "InputPlumber Keyboard"|\
+                "Microsoft Xbox Series S|X Controller") ;;
                 *) continue ;;
             esac
 
@@ -128,14 +136,14 @@ materialize_inputplumber_desktop_targets() {
             targets_found=$((targets_found + 1))
         done
 
-        if [ "${targets_found}" -ge 2 ]; then
-            gow_log "InputPlumber desktop input targets are ready"
+        if [ "${targets_found}" -ge 3 ]; then
+            gow_log "InputPlumber gamepad, mouse and keyboard targets are ready"
             return 0
         fi
         sleep 0.1
     done
 
-    gow_log "WARN: InputPlumber desktop input targets were not ready before Gamescope startup"
+    gow_log "WARN: InputPlumber targets were not ready before Gamescope startup"
     return 1
 }
 
@@ -231,8 +239,8 @@ if [ "${START_INPUTPLUMBER:-1}" = "1" ]; then
     mkdir -p /dev/input
     export RUST_LOG="${INPUTPLUMBER_LOG:-inputplumber::input::composite_device=debug,inputplumber=info}"
     start_daemon inputplumber inputplumber
-    materialize_inputplumber_desktop_targets || true
-    start_inputplumber_x11_bridge
+    materialize_inputplumber_targets || true
+    start_inputplumber_gamescope_bridge
     start_inputplumber_diagnostics
     maintain_inputplumber_menu_intercept &
 fi

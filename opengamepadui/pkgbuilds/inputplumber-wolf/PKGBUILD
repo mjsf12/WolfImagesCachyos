@@ -1,7 +1,7 @@
 # Based on the official Arch Linux inputplumber package.
 pkgname=inputplumber
 pkgver=0.78.0
-pkgrel=1.6
+pkgrel=1.7
 pkgdesc="Open source input router and remapper daemon for Linux (Wolf hotplug support)"
 arch=('x86_64')
 options=(!lto)
@@ -25,20 +25,17 @@ makedepends=(
 source=(
   "git+https://github.com/ShadowBlip/InputPlumber.git#tag=v${pkgver}"
   'inputplumber-wolf-gamepads.patch'
-  'inputplumber-wolf-exclusive-intercept.patch'
   '59-wolf_virtual_gamepad.yaml'
 )
 sha256sums=(
   'd229d0e16b06b88edd102b0758344be3fabc16dcee6de1440f3d7cfc624bf0ee'
-  'e32abdf6ba4737a08b7163ebccb351275ef3637ba15382f637e6f32b769406e8'
-  '348d3832d01916c4c99e659e3e6ef401b12eb58e42b5f673c23a748c15325481'
-  '7b5b3712f4fc63aba104236c967d6f20a0ea9c42bd6d46b5a6a8baa928bce8cc'
+  '686a896c616af916d81e025eebcb389897913bb1899a6e5c43820fdbcbff5ca8'
+  '8bd76370d25f9076f71a91d4b156854285fa344a552cf494ca02a11cf1eadea7'
 )
 
 prepare() {
   cd "$srcdir/InputPlumber"
   patch -Np1 -i "$srcdir/inputplumber-wolf-gamepads.patch"
-  patch -Np1 -i "$srcdir/inputplumber-wolf-exclusive-intercept.patch"
 }
 
 build() {

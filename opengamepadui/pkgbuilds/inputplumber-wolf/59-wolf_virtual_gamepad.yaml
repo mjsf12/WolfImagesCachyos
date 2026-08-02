@@ -12,13 +12,11 @@ options:
   auto_manage: true
 
 # Wolf creates the Moonlight gamepad after the application container starts.
-# InputPlumber must read it for its D-Bus target, while the original node must
-# remain available to games because stable Wolf does not relay virtual devices
-# created later through the application's own /dev/uinput.
+# InputPlumber owns it exclusively; games must only consume the virtual targets
+# below so profiles and interception remain authoritative end to end.
 source_devices:
   - group: gamepad
     unique: true
-    passthrough: true
     udev:
       attributes:
         - name: name
@@ -29,10 +27,12 @@ source_devices:
       sys_name: "event*"
       subsystem: input
 
-# Create the desktop targets before Gamescope enumerates /dev/input. Profiles
-# decide whether events are routed to these targets; keeping them alive avoids
-# hotplugging devices that the isolated Wolf container cannot materialize via
-# udev after the session is already running.
+# Create every output before Gamescope enumerates /dev/input. Normal profiles
+# emit through xbox-series. Desktop profiles emit mouse/keyboard while
+# GamepadOnly interception prevents unmapped controls from leaking to the Xbox
+# target. Keeping all targets alive makes profile changes atomic and avoids
+# late udev hotplug in Wolf's private /dev/input.
 target_devices:
+  - xbox-series
   - mouse
   - keyboard

@@ -39,6 +39,8 @@ def device_kind(name: str) -> str:
         return "target_mouse"
     if name == "InputPlumber Keyboard":
         return "target_keyboard"
+    if name == "Microsoft Xbox Series S|X Controller":
+        return "target_gamepad"
     if name.startswith("InputPlumber "):
         return "target_gamepad"
     return ""
@@ -54,7 +56,7 @@ def event_code_name(event_type: int, code: int) -> str:
 def should_trace_event(kind: str, event_type: int, code: int) -> bool:
     if event_type == ecodes.EV_KEY:
         return True
-    if kind == "source_gamepad" and event_type == ecodes.EV_ABS:
+    if kind in {"source_gamepad", "target_gamepad"} and event_type == ecodes.EV_ABS:
         return code in {
             ecodes.ABS_X,
             ecodes.ABS_Y,
