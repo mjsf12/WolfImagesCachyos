@@ -9,4 +9,8 @@ export GAMESCOPE_ZENITY_DISABLE="${GAMESCOPE_ZENITY_DISABLE:-1}"
 # que faria o wrapper abrir um segundo Gamescope. A sessão já está dentro do
 # compositor correto, portanto executa diretamente o binário do frontend.
 OGUI_BIN="${OGUI_BIN:-/usr/share/opengamepadui/opengamepad-ui.$(uname -m)}"
-CLIENTCMD="${OGUI_BIN} ${OPENGAMEPADUI_STARTUP_FLAGS:-}"
+# A imagem fornece um PCK corrigido que deve permanecer alinhado ao binario e
+# a GDExtension empacotados. Um update pack persistido substituiria os tres e
+# descartaria os patches de Gamescope, portanto o frontend embutido e sempre a
+# fonte de verdade desta sessao.
+CLIENTCMD="${OGUI_BIN} --skip-update-pack -- ${OPENGAMEPADUI_STARTUP_FLAGS:-}"

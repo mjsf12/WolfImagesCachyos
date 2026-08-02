@@ -1,7 +1,7 @@
 # Based on ShadowBlip/OpenGamepadUI package/archlinux/PKGBUILD.
 pkgname=opengamepadui-bin
 _pkgbase=opengamepadui
-pkgver=0.45.1
+pkgver=0.46.0
 pkgrel=1
 pkgdesc="Open source game launcher"
 arch=('x86_64')
@@ -35,7 +35,7 @@ conflicts=('opengamepadui-git')
 source=(
   "opengamepadui-v${pkgver}.tar.gz::https://github.com/ShadowBlip/OpenGamepadUI/releases/download/v${pkgver}/opengamepadui-x86_64.tar.gz"
 )
-sha256sums=('571844af911a0f7f187fed7f07e9cfccad45695d602c36f9091412024f55c6ed')
+sha256sums=('7e63c37cacf1c3fc1692062d1a196cc140bcaa59abe190081e44892ea43011d4')
 options=('!strip')
 
 package() {

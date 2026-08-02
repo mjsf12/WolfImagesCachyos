@@ -397,7 +397,7 @@ func _build_menu(compact: bool) -> Control:
 	menu.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 	# The Quick Bar receives an explicit title during registration. Procedural
-	# nodes have no scene owner, and OGUI 0.45.1's legacy title discovery calls
+	# nodes have no scene owner, and OGUI 0.46.0's legacy title discovery calls
 	# null.get("text") when it cannot find an owned SectionLabel.
 	if not compact:
 		var section := Label.new()

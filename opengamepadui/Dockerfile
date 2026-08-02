@@ -1,5 +1,5 @@
 ARG PEGASUS_IMAGE=gow/cachyos-pegasus:latest
-ARG OPENGAMEPADUI_BUILDER_IMAGE=ghcr.io/shadowblip/opengamepadui-builder:4.6.1
+ARG OPENGAMEPADUI_BUILDER_IMAGE=ghcr.io/shadowblip/opengamepadui-builder:4.7.1
 
 # Herda todos os pacotes, caches gráficos e o modo XFCE da imagem Pegasus.
 # hadolint ignore=DL3006
@@ -58,15 +58,15 @@ RUN sed -i \
     's|^Exec=.*opengamepadui.*|Exec=/usr/bin/opengamepadui %u|' \
     /usr/share/applications/opengamepadui.desktop
 
-# O OGUI 0.45.1 associa janelas principalmente pelo OGUI_ID dos processos.
+# O OGUI 0.46.0 associa janelas principalmente pelo OGUI_ID dos processos.
 # Launchers intermediários como Bottles, Heroic e Lutris podem remover essa
 # variável antes de criar a janela do jogo. Gere apenas um PCK corrigido usando
 # a mesma versão do Godot do binário oficial; o restante continua vindo do
 # pacote opengamepadui-bin instalado acima.
 FROM ${OPENGAMEPADUI_BUILDER_IMAGE} AS opengamepadui-pck-builder
 
-ARG OPENGAMEPADUI_COMMIT=3fe6ee9a7b032f8ebc29a05d07756457646abb82
-ARG OPENGAMEPADUI_SOURCE_SHA256=dad1c79d123b2f6c02aea7be48134102ed31e37b6250cd36cc524bd8c0655403
+ARG OPENGAMEPADUI_COMMIT=b149644f46b71e175a2ad223e84c18361596691e
+ARG OPENGAMEPADUI_SOURCE_SHA256=19e2eefd26f9777555885474fced7bdba66b63e26313bed27f4103e195923b18
 
 WORKDIR /src
 
@@ -81,9 +81,11 @@ RUN curl --fail --location --retry 3 \
 COPY patches/opengamepadui-gamescope-appid-window-detection.patch /tmp/opengamepadui.patch
 COPY patches/opengamepadui-overlay-return.patch /tmp/opengamepadui-overlay-return.patch
 COPY patches/opengamepadui-overlay-menu.patch /tmp/opengamepadui-overlay-menu.patch
+COPY patches/opengamepadui-godot-4.7-maximum-size.patch /tmp/opengamepadui-godot-4.7-maximum-size.patch
 COPY plugins/wolf-desktop-input /src/plugins/wolf-desktop-input
 COPY plugin-build/wolf-desktop-input-export.cfg /tmp/wolf-desktop-input-export.cfg
-RUN patch --strip=1 < /tmp/opengamepadui.patch && \
+RUN patch --strip=1 < /tmp/opengamepadui-godot-4.7-maximum-size.patch && \
+    patch --strip=1 < /tmp/opengamepadui.patch && \
     patch --strip=1 < /tmp/opengamepadui-overlay-return.patch && \
     patch --strip=1 < /tmp/opengamepadui-overlay-menu.patch && \
     sed -i 's|rootfs,sandbox,plugins,|rootfs,sandbox,plugins/*,|' \
@@ -91,7 +93,7 @@ RUN patch --strip=1 < /tmp/opengamepadui.patch && \
     cat /tmp/wolf-desktop-input-export.cfg >> /src/export_presets.cfg
 
 # O editor carrega a variante debug durante import/test. As duas variantes usam
-# a extensão oficial 0.45.1 já instalada na etapa de runtime.
+# a extensão oficial 0.46.0 já instalada na etapa de runtime.
 COPY --from=opengamepadui-runtime \
     /usr/share/opengamepadui/libopengamepadui-core.linux.template_release.x86_64.so \
     /src/addons/core/bin/libopengamepadui-core.linux.template_release.x86_64.so
@@ -117,7 +119,7 @@ RUN cp \
         /src/build/wolf-desktop-input.zip
 
 # Volte à imagem completa e troque somente os scripts/recursos Godot. O binário
-# e a GDExtension continuam byte a byte iguais aos do release oficial 0.45.1.
+# e a GDExtension continuam byte a byte iguais aos do release oficial 0.46.0.
 FROM opengamepadui-runtime
 
 COPY --from=opengamepadui-pck-builder \

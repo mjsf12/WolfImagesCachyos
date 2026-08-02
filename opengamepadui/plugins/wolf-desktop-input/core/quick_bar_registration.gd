@@ -1,6 +1,6 @@
 extends RefCounted
 
-## Registers a procedural menu without OGUI 0.45.1's legacy SectionLabel
+## Registers a procedural menu without OGUI 0.46.0's legacy SectionLabel
 ## discovery. That path only searches owned scene nodes and dereferences null
 ## for controls assembled at runtime.
 

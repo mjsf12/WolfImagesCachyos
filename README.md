@@ -215,14 +215,20 @@ profile. The image installs a patched InputPlumber 0.78.0 build that:
 - enables D-Bus interception when a new composite controller starts in mode
   `0`, without overriding OpenGamepadUI's in-game mode `1`.
 
-The build also patches OpenGamepadUI 0.45.1 window discovery. Gamescope
+The build also patches OpenGamepadUI 0.46.0 window discovery. Gamescope
 publishes focusable X11 windows as `[window_id, app_id, pid]` triplets; the
 patched launcher uses that AppId as a fallback when Bottles, Heroic, Lutris, or
 another intermediary launcher removes `OGUI_ID` from the game process. When the
 last game exits, the patch also disables `STEAM_OVERLAY` and restores Gamescope's
 idle baselayer list, preventing the menu from remaining transparent over a
-black screen. Seven headless Godot tests validate discovery and state
+black screen. Eight headless Godot tests validate discovery and state
 transitions during the image build.
+
+OpenGamepadUI 0.46.0 is built with Godot 4.7.1. The image carries a small
+compatibility patch for the new native `Control.custom_maximum_size` property
+and keeps the official binary, PCK, and GDExtension on the same release. The
+session skips persisted update packs because an upstream PCK would replace the
+Wolf Gamescope patches independently of the container image.
 
 The image also installs the `Wolf Desktop Input` plugin. For generic Moonlight
 controllers it translates `Start + Select` into a virtual Guide button. Releasing
@@ -231,10 +237,10 @@ the shortcut opens the main menu, `Start + Select + A` opens the quick bar, and
 desktop mode, the right stick moves the pointer, `A`/RT left-click, `B`/LT
 right-click, and the bumpers scroll. The previous game profile is restored when
 mouse mode is disabled. Its quick-bar page controls the current mode, generic
-shortcut, automatic launcher activation, and pointer speed. Eleven additional
-tests validate the chord and desktop profile. The plugin registers its
-procedural Quick Bar page with an explicit title, avoiding OpenGamepadUI
-0.45.1's unsafe legacy `SectionLabel` lookup.
+shortcut, automatic launcher activation, and pointer speed. Fourteen additional
+tests validate the chord and desktop profile. The plugin registers its procedural
+Quick Bar page with an explicit title, avoiding OpenGamepadUI
+0.46.0's unsafe legacy `SectionLabel` lookup.
 
 Build the image with:
 
