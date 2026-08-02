@@ -1,0 +1,14 @@
+{
+  "plugin.id": "wolf-desktop-input",
+  "plugin.name": "Wolf Desktop Input",
+  "plugin.version": "1.0.0",
+  "plugin.min-api-version": "2.0.0",
+  "plugin.link": "https://github.com/mjsf12/WolfImagesCachyos",
+  "plugin.source": "https://github.com/mjsf12/WolfImagesCachyos",
+  "plugin.description": "Generic controller shortcuts and a gamepad-driven desktop mouse mode.",
+  "store.tags": ["quick_bar", "input", "mouse"],
+  "store.images": [],
+  "author.name": "Wolf Containers",
+  "author.email": "",
+  "entrypoint": "plugin.gd"
+}

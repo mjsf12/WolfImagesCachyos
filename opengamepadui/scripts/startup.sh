@@ -30,6 +30,15 @@ fi
 ensure_writable_dir "${HOME}/.config/gamescope"
 ensure_writable_dir "${HOME}/.local/share/opengamepadui"
 
+# Instala/atualiza o plugin Wolf fornecido pela imagem no diretório persistente
+# que o carregador oficial do OpenGamepadUI inspeciona durante a inicialização.
+plugin_source=/usr/share/opengamepadui/plugins/wolf-desktop-input.zip
+plugin_dir="${HOME}/.local/share/opengamepadui/plugins"
+if [ -f "${plugin_source}" ]; then
+    ensure_writable_dir "${plugin_dir}"
+    install -m 0644 "${plugin_source}" "${plugin_dir}/wolf-desktop-input.zip"
+fi
+
 if [ -n "${DISPLAY:-}" ]; then
     gow_log "Waiting for X Server ${DISPLAY} to be available"
     /opt/gow/wait-x11

@@ -1,0 +1,91 @@
+{
+	"version": 1,
+	"kind": "DeviceProfile",
+	"name": "Wolf Desktop Mouse",
+	"description": "Right-stick mouse and desktop clicks for launchers",
+	"mapping": [
+		{
+			"name": "Guide",
+			"source_event": {"gamepad": {"button": "Guide"}},
+			"target_events": [{"dbus": "ui_guide"}]
+		},
+		{
+			"name": "Quick Access",
+			"source_event": {"gamepad": {"button": "QuickAccess"}},
+			"target_events": [{"dbus": "ui_quick"}]
+		},
+		{
+			"name": "Joystick Mouse",
+			"source_event": {
+				"gamepad": {"axis": {"name": "RightStick"}}
+			},
+			"target_events": [
+				{"mouse": {"motion": {"speed_pps": 800}}}
+			]
+		},
+		{
+			"name": "A Left Click",
+			"source_event": {"gamepad": {"button": "South"}},
+			"target_events": [{"mouse": {"button": "Left"}}]
+		},
+		{
+			"name": "B Right Click",
+			"source_event": {"gamepad": {"button": "East"}},
+			"target_events": [{"mouse": {"button": "Right"}}]
+		},
+		{
+			"name": "Right Trigger Left Click",
+			"source_event": {
+				"gamepad": {"trigger": {"name": "RightTrigger", "deadzone": 0.2}}
+			},
+			"target_events": [{"mouse": {"button": "Left"}}]
+		},
+		{
+			"name": "Left Trigger Right Click",
+			"source_event": {
+				"gamepad": {"trigger": {"name": "LeftTrigger", "deadzone": 0.2}}
+			},
+			"target_events": [{"mouse": {"button": "Right"}}]
+		},
+		{
+			"name": "Right Bumper Scroll Up",
+			"source_event": {"gamepad": {"button": "RightBumper"}},
+			"target_events": [{"mouse": {"button": "WheelUp"}}]
+		},
+		{
+			"name": "Left Bumper Scroll Down",
+			"source_event": {"gamepad": {"button": "LeftBumper"}},
+			"target_events": [{"mouse": {"button": "WheelDown"}}]
+		},
+		{
+			"name": "DPad Up",
+			"source_event": {"gamepad": {"button": "DPadUp"}},
+			"target_events": [{"keyboard": "KeyUp"}]
+		},
+		{
+			"name": "DPad Down",
+			"source_event": {"gamepad": {"button": "DPadDown"}},
+			"target_events": [{"keyboard": "KeyDown"}]
+		},
+		{
+			"name": "DPad Left",
+			"source_event": {"gamepad": {"button": "DPadLeft"}},
+			"target_events": [{"keyboard": "KeyLeft"}]
+		},
+		{
+			"name": "DPad Right",
+			"source_event": {"gamepad": {"button": "DPadRight"}},
+			"target_events": [{"keyboard": "KeyRight"}]
+		},
+		{
+			"name": "Start Escape",
+			"source_event": {"gamepad": {"button": "Start"}},
+			"target_events": [{"keyboard": "KeyEsc"}]
+		},
+		{
+			"name": "Select Tab",
+			"source_event": {"gamepad": {"button": "Select"}},
+			"target_events": [{"keyboard": "KeyTab"}]
+		}
+	]
+}

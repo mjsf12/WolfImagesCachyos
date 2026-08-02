@@ -224,6 +224,16 @@ baselayer do Gamescope; isso evita que o menu continue transparente sobre uma
 tela preta. Sete testes headless do Godot validam a descoberta e as transições
 de estado durante o build da imagem.
 
+A imagem também instala o plugin `Wolf Desktop Input`. Para controles genéricos
+do Moonlight, ele converte `Start + Select` em um botão Guide virtual. Soltar o
+atalho abre o menu principal; `Start + Select + A` abre a barra rápida e
+`Start + Select + X` alterna entre o perfil normal e o modo desktop. No modo
+desktop, o analógico direito move o ponteiro, `A`/RT fazem clique esquerdo,
+`B`/LT fazem clique direito e os bumpers rolam a página. O perfil anterior do
+jogo é restaurado ao sair do modo mouse. A barra rápida permite alterar o modo,
+o atalho genérico, a ativação automática para launchers e a velocidade do
+ponteiro. Oito testes adicionais validam o chord e o conteúdo do perfil.
+
 Compile a imagem com:
 
 ```bash

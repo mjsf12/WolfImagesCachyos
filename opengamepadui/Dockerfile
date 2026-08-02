@@ -78,8 +78,13 @@ RUN curl --fail --location --retry 3 \
 
 COPY patches/opengamepadui-gamescope-appid-window-detection.patch /tmp/opengamepadui.patch
 COPY patches/opengamepadui-overlay-return.patch /tmp/opengamepadui-overlay-return.patch
+COPY plugins/wolf-desktop-input /src/plugins/wolf-desktop-input
+COPY plugin-build/wolf-desktop-input-export.cfg /tmp/wolf-desktop-input-export.cfg
 RUN patch --strip=1 < /tmp/opengamepadui.patch && \
-    patch --strip=1 < /tmp/opengamepadui-overlay-return.patch
+    patch --strip=1 < /tmp/opengamepadui-overlay-return.patch && \
+    sed -i 's|rootfs,sandbox,plugins,|rootfs,sandbox,plugins/*,|' \
+        /src/export_presets.cfg && \
+    cat /tmp/wolf-desktop-input-export.cfg >> /src/export_presets.cfg
 
 # O editor carrega a variante debug durante import/test. As duas variantes usam
 # a extensão oficial 0.45.1 já instalada na etapa de runtime.
@@ -96,10 +101,16 @@ RUN cp \
     /usr/bin/godot --headless --path /src \
         --script res://addons/gut/gut_cmdln.gd \
         -gselect=gamescope_session_state && \
+    /usr/bin/godot --headless --path /src \
+        --script res://addons/gut/gut_cmdln.gd \
+        -gdir=res://plugins/wolf-desktop-input/core && \
     mkdir -p /src/build && \
     /usr/bin/godot --headless --path /src \
         --export-pack "Linux/X11 x86_64" \
-        /src/build/opengamepad-ui.pck
+        /src/build/opengamepad-ui.pck && \
+    /usr/bin/godot --headless --path /src \
+        --export-pack "Wolf Desktop Input" \
+        /src/build/wolf-desktop-input.zip
 
 # Volte à imagem completa e troque somente os scripts/recursos Godot. O binário
 # e a GDExtension continuam byte a byte iguais aos do release oficial 0.45.1.
@@ -108,6 +119,9 @@ FROM opengamepadui-runtime
 COPY --from=opengamepadui-pck-builder \
     /src/build/opengamepad-ui.pck \
     /usr/share/opengamepadui/opengamepad-ui.pck
+COPY --from=opengamepadui-pck-builder \
+    /src/build/wolf-desktop-input.zip \
+    /usr/share/opengamepadui/plugins/wolf-desktop-input.zip
 
 # Evita recursão de diálogos Zenity quando a camada Vulkan Gamescope WSI
 # decide continuar com um swapchain X11 normal.

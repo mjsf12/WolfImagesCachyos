@@ -224,6 +224,16 @@ idle baselayer list, preventing the menu from remaining transparent over a
 black screen. Seven headless Godot tests validate discovery and state
 transitions during the image build.
 
+The image also installs the `Wolf Desktop Input` plugin. For generic Moonlight
+controllers it translates `Start + Select` into a virtual Guide button. Releasing
+the shortcut opens the main menu, `Start + Select + A` opens the quick bar, and
+`Start + Select + X` toggles between the normal profile and desktop mode. In
+desktop mode, the right stick moves the pointer, `A`/RT left-click, `B`/LT
+right-click, and the bumpers scroll. The previous game profile is restored when
+mouse mode is disabled. Its quick-bar page controls the current mode, generic
+shortcut, automatic launcher activation, and pointer speed. Eight additional
+tests validate the chord and desktop profile.
+
 Build the image with:
 
 ```bash
