@@ -218,8 +218,11 @@ profile. The image installs a patched InputPlumber 0.78.0 build that:
 The build also patches OpenGamepadUI 0.45.1 window discovery. Gamescope
 publishes focusable X11 windows as `[window_id, app_id, pid]` triplets; the
 patched launcher uses that AppId as a fallback when Bottles, Heroic, Lutris, or
-another intermediary launcher removes `OGUI_ID` from the game process. Four
-headless Godot tests validate the parser during the image build.
+another intermediary launcher removes `OGUI_ID` from the game process. When the
+last game exits, the patch also disables `STEAM_OVERLAY` and restores Gamescope's
+idle baselayer list, preventing the menu from remaining transparent over a
+black screen. Seven headless Godot tests validate discovery and state
+transitions during the image build.
 
 Build the image with:
 

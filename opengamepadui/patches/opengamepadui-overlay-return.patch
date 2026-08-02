@@ -1,0 +1,102 @@
+diff --git a/core/global/launch_manager.gd b/core/global/launch_manager.gd
+--- a/core/global/launch_manager.gd
++++ b/core/global/launch_manager.gd
+@@ -38,6 +38,7 @@ signal recent_apps_changed()
+ const settings_manager := preload("res://core/global/settings_manager.tres")
+ const notification_manager := preload("res://core/global/notification_manager.tres")
+ const library_manager := preload("res://core/global/library_manager.tres")
++const GamescopeSessionState := preload("res://core/systems/gamescope/gamescope_session_state.gd")
+ 
+ var gamescope := preload("res://core/systems/gamescope/gamescope.tres") as GamescopeInstance
+ var input_plumber := load("res://core/systems/input/input_plumber.tres") as InputPlumberInstance
+@@ -157,6 +158,9 @@ func _init() -> void:
+ 		if _xwayland_ogui:
+ 			logger.debug("Enabling STEAM_OVERLAY atom")
+-			_xwayland_ogui.set_overlay(_ogui_window_id, 1)
++			_xwayland_ogui.set_overlay(
++				_ogui_window_id,
++				GamescopeSessionState.overlay_value(true),
++			)
+ 
+ 	var on_game_state_exited := func(_to: State):
+ 		# Set the gamepad profile to the global profile
+@@ -168,7 +172,10 @@ func _init() -> void:
+ 
+ 		if _xwayland_ogui:
+ 			logger.debug("Disabling STEAM_OVERLAY atom")
+-			_xwayland_ogui.set_overlay(_ogui_window_id, 1)
++			_xwayland_ogui.set_overlay(
++				_ogui_window_id,
++				GamescopeSessionState.overlay_value(false),
++			)
+ 
+ 	in_game_state.state_entered.connect(on_game_state_entered)
+ 	in_game_state.state_exited.connect(on_game_state_exited)
+@@ -583,6 +590,10 @@ func _on_app_state_changed(from: RunningApp.STATE, to: RunningApp.STATE, app: Ru
+ 		logger.info("No more apps are running. Removing in-game state.")
+ 		_current_app = null
+ 		_xwayland_primary.remove_baselayer_window()
++		_xwayland_primary.baselayer_apps = GamescopeSessionState.default_baselayer_apps(
++			gamescope.EXTRA_UNKNOWN_GAME_ID,
++			gamescope.OVERLAY_GAME_ID,
++		)
+ 		state_machine.remove_state(in_game_state)
+ 		state_machine.remove_state(in_game_menu_state)
+ 		all_apps_stopped.emit()
+diff --git a/core/systems/gamescope/gamescope_session_state.gd b/core/systems/gamescope/gamescope_session_state.gd
+new file mode 100644
+--- /dev/null
++++ b/core/systems/gamescope/gamescope_session_state.gd
+@@ -0,0 +1,22 @@
++extends RefCounted
++class_name GamescopeSessionState
++
++## Pure helpers for Gamescope state transitions around a launched game.
++
++const OVERLAY_DISABLED := 0
++const OVERLAY_ENABLED := 1
++
++
++## Return the STEAM_OVERLAY value for the given global game state.
++static func overlay_value(in_game: bool) -> int:
++	if in_game:
++		return OVERLAY_ENABLED
++	return OVERLAY_DISABLED
++
++
++## Return the idle baselayer list, without AppIDs from exited games.
++static func default_baselayer_apps(
++		extra_unknown_app_id: int,
++		overlay_app_id: int,
++	) -> PackedInt64Array:
++	return PackedInt64Array([extra_unknown_app_id, overlay_app_id])
+diff --git a/core/systems/gamescope/gamescope_session_state_test.gd b/core/systems/gamescope/gamescope_session_state_test.gd
+new file mode 100644
+--- /dev/null
++++ b/core/systems/gamescope/gamescope_session_state_test.gd
+@@ -0,0 +1,25 @@
++extends GutTest
++
++const SessionState := preload("res://core/systems/gamescope/gamescope_session_state.gd")
++
++
++func test_enables_overlay_while_game_is_running() -> void:
++	assert_eq(SessionState.overlay_value(true), 1)
++
++
++func test_disables_overlay_after_last_game_exits() -> void:
++	assert_eq(
++		SessionState.overlay_value(false),
++		0,
++		"The menu must become a normal Gamescope window again",
++	)
++
++
++func test_restores_idle_baselayer_apps_after_last_game_exits() -> void:
++	var actual := SessionState.default_baselayer_apps(413091, 769)
++
++	assert_eq(
++		actual,
++		PackedInt64Array([413091, 769]),
++		"Exited game AppIDs must not remain in the baselayer list",
++	)

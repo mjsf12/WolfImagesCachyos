@@ -77,7 +77,9 @@ RUN curl --fail --location --retry 3 \
     rm -f /tmp/opengamepadui-source.tar.gz
 
 COPY patches/opengamepadui-gamescope-appid-window-detection.patch /tmp/opengamepadui.patch
-RUN patch --strip=1 < /tmp/opengamepadui.patch
+COPY patches/opengamepadui-overlay-return.patch /tmp/opengamepadui-overlay-return.patch
+RUN patch --strip=1 < /tmp/opengamepadui.patch && \
+    patch --strip=1 < /tmp/opengamepadui-overlay-return.patch
 
 # O editor carrega a variante debug durante import/test. As duas variantes usam
 # a extensão oficial 0.45.1 já instalada na etapa de runtime.
@@ -91,6 +93,9 @@ RUN cp \
     /usr/bin/godot --headless --path /src \
         --script res://addons/gut/gut_cmdln.gd \
         -gselect=gamescope_focusable_windows && \
+    /usr/bin/godot --headless --path /src \
+        --script res://addons/gut/gut_cmdln.gd \
+        -gselect=gamescope_session_state && \
     mkdir -p /src/build && \
     /usr/bin/godot --headless --path /src \
         --export-pack "Linux/X11 x86_64" \
