@@ -4,12 +4,12 @@ const ShortcutState := preload("res://plugins/wolf-desktop-input/core/shortcut_s
 const QuickBarRegistration := preload(
 	"res://plugins/wolf-desktop-input/core/quick_bar_registration.gd"
 )
+const ActivationGuard := preload("res://plugins/wolf-desktop-input/core/activation_guard.gd")
 const SETTINGS_SECTION := "plugin.wolf-desktop-input"
 const SOURCE_PROFILE := "profiles/desktop_mouse.json"
 const USER_PROFILE_DIR := "user://data/gamepad/profiles"
 const USER_PROFILE := USER_PROFILE_DIR + "/wolf_desktop_mouse.json"
 const GUIDE_ACTION := "ogui_guide_action"
-const ACTIVATION_GUARD_INTERVAL := 0.25
 
 var input_plumber := load("res://core/systems/input/input_plumber.tres") as InputPlumberInstance
 var launch_manager := load("res://core/global/launch_manager.tres") as LaunchManager
@@ -29,7 +29,7 @@ var _menus: Array[Dictionary] = []
 var _watched_targets := {}
 var _target_connections := {}
 var _target_devices := {}
-var _activation_guard_elapsed := 0.0
+var _activation_guard := ActivationGuard.new()
 
 
 func _ready() -> void:
@@ -62,6 +62,7 @@ func _ready() -> void:
 	# application handles the usual order; the guard handles later UI/profile
 	# reconfiguration as well.
 	_configure_activation.call_deferred()
+	_arm_activation_guard()
 
 	# Never carry desktop mode across a frontend restart or plugin update.
 	_desktop_mode = false
@@ -71,14 +72,14 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	_activation_guard_elapsed += delta
-	if _activation_guard_elapsed < ACTIVATION_GUARD_INTERVAL:
-		return
-	_activation_guard_elapsed = 0.0
-	_ensure_activation()
+	if _activation_guard.advance(delta):
+		_configure_activation()
+	if not _activation_guard.is_active():
+		set_process(false)
 
 
 func unload() -> void:
+	set_process(false)
 	_set_desktop_mode(false, false)
 	_apply_standard_guide_activation()
 	_disconnect_runtime_signals()
@@ -139,6 +140,8 @@ func _initialize_inputplumber() -> void:
 
 func _on_device_added(device: CompositeDevice) -> void:
 	_apply_activation(device)
+	_apply_activation.bind(device).call_deferred()
+	_arm_activation_guard()
 	for target in device.dbus_devices:
 		var target_path := target.dbus_path as String
 		if _watched_targets.has(target_path):
@@ -185,15 +188,9 @@ func _configure_activation() -> void:
 	input_plumber.set_intercept_activation(triggers, ShortcutState.GUIDE_CAPABILITY)
 
 
-func _ensure_activation() -> void:
-	if not ShortcutState.activation_needs_restore(
-		input_plumber.get_intercept_triggers(),
-		input_plumber.get_intercept_target(),
-		_generic_shortcut,
-	):
-		return
-	logger.info("Restoring system shortcut after frontend reconfiguration")
-	_configure_activation()
+func _arm_activation_guard() -> void:
+	_activation_guard.arm()
+	set_process(true)
 
 
 func _apply_standard_guide_activation() -> void:
@@ -437,6 +434,7 @@ func _on_generic_shortcut_toggled(enabled: bool) -> void:
 	_generic_shortcut = enabled
 	settings_manager.set_value(SETTINGS_SECTION, "generic_shortcut", enabled)
 	_configure_activation()
+	_arm_activation_guard()
 	_refresh_menus()
 
 

@@ -21,16 +21,6 @@ static func activation_triggers(generic_shortcut: bool) -> PackedStringArray:
 	return PackedStringArray([GUIDE_CAPABILITY])
 
 
-static func activation_needs_restore(
-	current_triggers: PackedStringArray,
-	current_target: String,
-	generic_shortcut: bool,
-) -> bool:
-	if current_target != GUIDE_CAPABILITY:
-		return true
-	return current_triggers != activation_triggers(generic_shortcut)
-
-
 ## Track InputPlumber D-Bus events and return true once for Guide + West/X.
 func handle_event(device_path: String, event: String, value: float) -> bool:
 	var pressed := value > 0.5

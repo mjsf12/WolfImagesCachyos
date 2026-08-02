@@ -20,39 +20,6 @@ func test_keeps_guide_for_standard_controllers() -> void:
 	)
 
 
-func test_activation_guard_accepts_the_expected_configuration() -> void:
-	assert_false(
-		ShortcutState.activation_needs_restore(
-			PackedStringArray([
-				ShortcutState.START_CAPABILITY,
-				ShortcutState.SELECT_CAPABILITY,
-			]),
-			ShortcutState.GUIDE_CAPABILITY,
-			true,
-		),
-	)
-
-
-func test_activation_guard_detects_frontend_overrides() -> void:
-	assert_true(
-		ShortcutState.activation_needs_restore(
-			PackedStringArray([ShortcutState.GUIDE_CAPABILITY]),
-			ShortcutState.GUIDE_CAPABILITY,
-			true,
-		),
-	)
-	assert_true(
-		ShortcutState.activation_needs_restore(
-			PackedStringArray([
-				ShortcutState.START_CAPABILITY,
-				ShortcutState.SELECT_CAPABILITY,
-			]),
-			"Gamepad:Button:QuickAccess2",
-			true,
-		),
-	)
-
-
 func test_guide_and_action_toggle_only_once_per_press() -> void:
 	var state := ShortcutState.new()
 	var path := "/controller/0"
