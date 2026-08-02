@@ -221,8 +221,10 @@ patched launcher uses that AppId as a fallback when Bottles, Heroic, Lutris, or
 another intermediary launcher removes `OGUI_ID` from the game process. When the
 last game exits, the patch also disables `STEAM_OVERLAY` and restores Gamescope's
 idle baselayer list, preventing the menu from remaining transparent over a
-black screen. Eight headless Godot tests validate discovery and state
-transitions during the image build.
+black screen. Wine and launcher helpers that outlive a closed game are finalized
+after a bounded grace period so they cannot retain a stale game baselayer.
+Twelve headless Godot tests validate discovery, lifecycle, and state transitions
+during the image build.
 
 OpenGamepadUI 0.46.0 is built with Godot 4.7.1. The image carries a small
 compatibility patch for the new native `Control.custom_maximum_size` property
@@ -237,8 +239,10 @@ the shortcut opens the main menu, `Start + Select + A` opens the quick bar, and
 desktop mode, the right stick moves the pointer, `A`/RT left-click, `B`/LT
 right-click, and the bumpers scroll. The previous game profile is restored when
 mouse mode is disabled. Its quick-bar page controls the current mode, generic
-shortcut, automatic launcher activation, and pointer speed. Fourteen additional
-tests validate the chord and desktop profile. The plugin registers its procedural
+shortcut, automatic launcher activation, and pointer speed. Every route change
+is written to the live InputPlumber composite even if OpenGamepadUI's local cache
+already reports that mode. Sixteen additional tests validate the chord, route,
+and desktop profile. The plugin registers its procedural
 Quick Bar page with an explicit title, avoiding OpenGamepadUI
 0.46.0's unsafe legacy `SectionLabel` lookup.
 

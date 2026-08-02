@@ -2,6 +2,9 @@ extends Plugin
 
 const ShortcutState := preload("res://plugins/wolf-desktop-input/core/shortcut_state.gd")
 const InterceptPolicy := preload("res://plugins/wolf-desktop-input/core/intercept_policy.gd")
+const InterceptReconciler := preload(
+	"res://plugins/wolf-desktop-input/core/intercept_reconciler.gd"
+)
 const QuickBarRegistration := preload(
 	"res://plugins/wolf-desktop-input/core/quick_bar_registration.gd"
 )
@@ -304,24 +307,21 @@ func _sync_intercept_mode() -> void:
 		global_state_machine.has_state(in_game_state),
 		popup_state_machine.current_state() != null,
 	)
-	var repaired_device := false
-	input_plumber.set_intercept_mode(mode)
-	# InputPlumberInstance's cached composite collection can miss the Wolf
-	# device even though the plugin already received it through device_added.
-	# Write every live D-Bus composite directly; this is the value that controls
-	# the exclusive evdev grab in the Wolf InputPlumber patch.
-	for device: CompositeDevice in input_plumber.get_composite_devices():
-		if device.intercept_mode == mode:
-			continue
-		device.intercept_mode = mode
-		repaired_device = true
-	if mode == _last_intercept_mode and not repaired_device:
+	# Always write every live composite. OpenGamepadUI 0.46 can update the local
+	# wrapper cache while the real D-Bus device remains in the previous mode.
+	InterceptReconciler.apply_mode(
+		input_plumber,
+		input_plumber.get_composite_devices(),
+		mode,
+	)
+	if mode == _last_intercept_mode:
 		return
 	_last_intercept_mode = mode
 	logger.info("Input route: " + ("game" if mode == 1 else "OpenGamepadUI"))
 
 
 func _on_app_launched(app: RunningApp) -> void:
+	_sync_intercept_mode.call_deferred()
 	if not _auto_launchers or not _is_desktop_launcher(app):
 		return
 	_auto_owned = true
@@ -329,6 +329,10 @@ func _on_app_launched(app: RunningApp) -> void:
 
 
 func _on_app_switched(_from: RunningApp, to: RunningApp) -> void:
+	# LaunchManager applies the selected game profile after app_switched. Reassert
+	# the route on the next frame so that late profile work cannot retain the
+	# frontend's exclusive grab.
+	_sync_intercept_mode.call_deferred()
 	if _auto_launchers and _is_desktop_launcher(to):
 		_auto_owned = true
 		_set_desktop_mode(true, false)
@@ -342,6 +346,7 @@ func _on_app_switched(_from: RunningApp, to: RunningApp) -> void:
 
 
 func _on_app_stopped(app: RunningApp) -> void:
+	_sync_intercept_mode.call_deferred()
 	if _auto_owned and _is_desktop_launcher(app):
 		_auto_owned = false
 		_set_desktop_mode(false, false)

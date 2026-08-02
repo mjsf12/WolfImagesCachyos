@@ -1,0 +1,135 @@
+--- a/core/systems/launcher/running_app.gd
++++ b/core/systems/launcher/running_app.gd
+@@ -2,6 +2,7 @@
+ class_name RunningApp
+ 
+ const GamescopeFocusableWindows := preload("res://core/systems/launcher/gamescope_focusable_windows.gd")
++const WindowExitPolicy := preload("res://core/systems/launcher/window_exit_policy.gd")
+ 
+ ## Defines a running application
+ ##
+@@ -117,6 +118,10 @@
+ var num_created_windows := 0
+ ## Number of times this app has failed its "is_running" check
+ var not_running_count := 0
++## Time when a previously running X11 app first lost all of its windows.
++var missing_window_timestamp := 0
++## Time when the user explicitly requested the app to stop.
++var stop_requested_timestamp := 0
+ ## Flag for if OGUI should manage this app. Set to false if app is launched
+ ## outside OGUI and we just want to track it.
+ var is_ogui_managed: bool = true
+@@ -257,14 +262,33 @@
+ 	if not running:
+ 		not_running_count += 1
+ 
++	var now := Time.get_ticks_msec()
++	if state == STATE.STOPPING and WindowExitPolicy.should_finalize_explicit_stop(
++			stop_requested_timestamp,
++			now,
++		):
++		_finalize_stale_process("stop request timed out", Reaper.SIG.KILL)
++		return
++
+ 	# Update the running app's state
+ 	if not_running_count > 3:
+ 		state = STATE.STOPPED
+ 		app_killed.emit()
+ 	elif state in [STATE.STARTED, STATE.MISSING_WINDOW] and self.window_ids.size() > 0:
++		missing_window_timestamp = 0
+ 		state = STATE.RUNNING
+ 	elif state in [STATE.RUNNING, STATE.STARTED] and self.window_ids.is_empty():
++		if state == STATE.RUNNING:
++			missing_window_timestamp = now
+ 		state = STATE.MISSING_WINDOW
++	elif state == STATE.MISSING_WINDOW and self.window_ids.is_empty():
++		if WindowExitPolicy.should_finalize_missing_window(
++				is_ogui_managed,
++				missing_window_timestamp,
++				now,
++			):
++			_finalize_stale_process("game window disappeared", Reaper.SIG.TERM)
++			return
+ 
+ 	# Update steam state if this is a steam app
+ 	update_steam_xwayland_app(app_pids)
+@@ -464,11 +488,22 @@
+ 
+ ## Kill the running app
+ func kill(sig: Reaper.SIG = Reaper.SIG.TERM) -> void:
++	if state != STATE.STOPPING:
++		stop_requested_timestamp = Time.get_ticks_msec()
+ 	state = STATE.STOPPING
+ 	app_stopped.emit()
+ 	Reaper.reap(pid, sig)
+ 
+ 
++## Finish lifecycle cleanup when a launcher helper keeps the reaper alive after
++## the game has exited. This deliberately applies only after a grace period.
++func _finalize_stale_process(reason: String, sig: Reaper.SIG) -> void:
++	logger.info(launch_item.name + " lifecycle cleanup: " + reason)
++	Reaper.reap(pid, sig)
++	state = STATE.STOPPED
++	app_killed.emit()
++
++
+ ## Iterates through all windows related to the app and sets the app ID property
+ ## so they will appear as focusable windows to Gamescope
+ func _ensure_app_id() -> void:
+--- a/core/systems/launcher/window_exit_policy.gd
++++ b/core/systems/launcher/window_exit_policy.gd
+@@ -0,0 +1,29 @@
++extends RefCounted
++class_name WindowExitPolicy
++
++## Grace periods for launch commands whose Wine/launcher helpers outlive the
++## actual game window. Explicit menu stops can settle quickly; a spontaneously
++## missing window gets more time in case the game is recreating its swapchain.
++
++const STOPPING_GRACE_MSEC := 3000
++const MISSING_WINDOW_GRACE_MSEC := 8000
++
++
++static func grace_elapsed(started_at: int, now: int, grace_msec: int) -> bool:
++	if started_at <= 0 or now < started_at:
++		return false
++	return now - started_at >= grace_msec
++
++
++static func should_finalize_explicit_stop(started_at: int, now: int) -> bool:
++	return grace_elapsed(started_at, now, STOPPING_GRACE_MSEC)
++
++
++static func should_finalize_missing_window(
++		is_managed: bool,
++		started_at: int,
++		now: int,
++	) -> bool:
++	if not is_managed:
++		return false
++	return grace_elapsed(started_at, now, MISSING_WINDOW_GRACE_MSEC)
+--- a/core/systems/launcher/window_exit_policy_test.gd
++++ b/core/systems/launcher/window_exit_policy_test.gd
+@@ -0,0 +1,22 @@
++extends GutTest
++
++const ExitPolicy := preload("res://core/systems/launcher/window_exit_policy.gd")
++
++
++func test_waits_for_an_explicit_stop_to_settle() -> void:
++	assert_false(ExitPolicy.should_finalize_explicit_stop(1000, 3999))
++	assert_true(ExitPolicy.should_finalize_explicit_stop(1000, 4000))
++
++
++func test_waits_longer_for_a_spontaneously_missing_window() -> void:
++	assert_false(ExitPolicy.should_finalize_missing_window(true, 1000, 8999))
++	assert_true(ExitPolicy.should_finalize_missing_window(true, 1000, 9000))
++
++
++func test_does_not_finalize_an_unmanaged_external_app() -> void:
++	assert_false(ExitPolicy.should_finalize_missing_window(false, 1000, 20000))
++
++
++func test_requires_a_valid_transition_timestamp() -> void:
++	assert_false(ExitPolicy.should_finalize_explicit_stop(0, 20000))
++	assert_false(ExitPolicy.should_finalize_missing_window(true, 0, 20000))

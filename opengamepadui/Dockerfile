@@ -82,10 +82,12 @@ COPY patches/opengamepadui-gamescope-appid-window-detection.patch /tmp/opengamep
 COPY patches/opengamepadui-overlay-return.patch /tmp/opengamepadui-overlay-return.patch
 COPY patches/opengamepadui-overlay-menu.patch /tmp/opengamepadui-overlay-menu.patch
 COPY patches/opengamepadui-godot-4.7-maximum-size.patch /tmp/opengamepadui-godot-4.7-maximum-size.patch
+COPY patches/opengamepadui-launcher-exit-cleanup.patch /tmp/opengamepadui-launcher-exit-cleanup.patch
 COPY plugins/wolf-desktop-input /src/plugins/wolf-desktop-input
 COPY plugin-build/wolf-desktop-input-export.cfg /tmp/wolf-desktop-input-export.cfg
 RUN patch --strip=1 < /tmp/opengamepadui-godot-4.7-maximum-size.patch && \
     patch --strip=1 < /tmp/opengamepadui.patch && \
+    patch --strip=1 < /tmp/opengamepadui-launcher-exit-cleanup.patch && \
     patch --strip=1 < /tmp/opengamepadui-overlay-return.patch && \
     patch --strip=1 < /tmp/opengamepadui-overlay-menu.patch && \
     sed -i 's|rootfs,sandbox,plugins,|rootfs,sandbox,plugins/*,|' \
@@ -107,6 +109,9 @@ RUN cp \
     /usr/bin/godot --headless --path /src \
         --script res://addons/gut/gut_cmdln.gd \
         -gselect=gamescope_session_state && \
+    /usr/bin/godot --headless --path /src \
+        --script res://addons/gut/gut_cmdln.gd \
+        -gselect=window_exit_policy && \
     /usr/bin/godot --headless --path /src \
         --script res://addons/gut/gut_cmdln.gd \
         -gdir=res://plugins/wolf-desktop-input/core && \
