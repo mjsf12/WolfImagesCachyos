@@ -240,8 +240,9 @@ desktop mode, the right stick moves the pointer, `A`/RT left-click, `B`/LT
 right-click, and the bumpers scroll. The previous game profile is restored when
 mouse mode is disabled. Its quick-bar page controls the current mode, generic
 shortcut, automatic launcher activation, and pointer speed. Every route change
-is written to the live InputPlumber composite even if OpenGamepadUI's local cache
-already reports that mode. Sixteen additional tests validate the chord, route,
+is written to the live InputPlumber composite captured from the device-added
+signal, even if OpenGamepadUI's local device cache is temporarily empty or
+already reports that mode. Eighteen additional tests validate the chord, route,
 and desktop profile. The plugin registers its procedural
 Quick Bar page with an explicit title, avoiding OpenGamepadUI
 0.46.0's unsafe legacy `SectionLabel` lookup.

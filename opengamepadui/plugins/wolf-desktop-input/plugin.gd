@@ -34,6 +34,7 @@ var _menus: Array[Dictionary] = []
 var _watched_targets := {}
 var _target_connections := {}
 var _target_devices := {}
+var _composite_devices := {}
 var _last_intercept_mode := -1
 
 
@@ -140,6 +141,7 @@ func _initialize_inputplumber() -> void:
 
 
 func _on_device_added(device: CompositeDevice) -> void:
+	_composite_devices[device.dbus_path as String] = device
 	_apply_activation(device)
 	_apply_activation.bind(device).call_deferred()
 	for target in device.dbus_devices:
@@ -152,9 +154,13 @@ func _on_device_added(device: CompositeDevice) -> void:
 		_target_connections[target_path] = callback
 		_target_devices[target_path] = device.dbus_path as String
 		logger.info("Watching InputPlumber target " + target_path)
+	# Reapply the current route through the object delivered by the signal. The
+	# InputPlumberInstance cache can lag behind this callback on OGUI 0.46.
+	_sync_intercept_mode.call_deferred()
 
 
 func _on_device_removed(device_path: String) -> void:
+	_composite_devices.erase(device_path)
 	_shortcut_state.forget_device(device_path)
 	var stale_targets: Array[String] = []
 	for target_path: String in _watched_targets.keys():
@@ -309,15 +315,27 @@ func _sync_intercept_mode() -> void:
 	)
 	# Always write every live composite. OpenGamepadUI 0.46 can update the local
 	# wrapper cache while the real D-Bus device remains in the previous mode.
-	InterceptReconciler.apply_mode(
-		input_plumber,
+	var devices := InterceptReconciler.collect_devices(
 		input_plumber.get_composite_devices(),
+		_composite_devices,
+	)
+	var writes := InterceptReconciler.apply_mode(
+		input_plumber,
+		devices,
 		mode,
 	)
+	if writes == 0:
+		logger.warn("No live InputPlumber composites available for route reconciliation")
 	if mode == _last_intercept_mode:
 		return
 	_last_intercept_mode = mode
-	logger.info("Input route: " + ("game" if mode == 1 else "OpenGamepadUI"))
+	logger.info(
+		"Input route: "
+		+ ("game" if mode == 1 else "OpenGamepadUI")
+		+ " (devices: "
+		+ str(writes)
+		+ ")"
+	)
 
 
 func _on_app_launched(app: RunningApp) -> void:

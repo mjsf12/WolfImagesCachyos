@@ -13,6 +13,7 @@ class FakeInputPlumber extends RefCounted:
 
 
 class FakeCompositeDevice extends RefCounted:
+	var dbus_path := "/org/shadowblip/InputPlumber/CompositeDevice0"
 	var writes := 0
 	var intercept_mode := 0:
 		set(value):
@@ -42,3 +43,26 @@ func test_rewrites_live_composite_when_its_cached_mode_already_matches() -> void
 	InterceptReconciler.apply_mode(input_plumber, [device], 1)
 
 	assert_eq(device.writes, 2, "Every reconciliation must reach the real D-Bus device")
+
+
+func test_uses_signal_tracked_device_when_ogui_cache_is_empty() -> void:
+	var device := FakeCompositeDevice.new()
+
+	var devices := InterceptReconciler.collect_devices(
+		[],
+		{device.dbus_path: device},
+	)
+
+	assert_eq(devices, [device])
+
+
+func test_deduplicates_tracked_and_cached_device_by_dbus_path() -> void:
+	var tracked := FakeCompositeDevice.new()
+	var cached := FakeCompositeDevice.new()
+
+	var devices := InterceptReconciler.collect_devices(
+		[cached],
+		{tracked.dbus_path: tracked},
+	)
+
+	assert_eq(devices, [tracked])
