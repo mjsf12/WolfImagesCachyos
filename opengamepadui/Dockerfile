@@ -81,6 +81,7 @@ RUN curl --fail --location --retry 3 \
 COPY patches/opengamepadui-gamescope-appid-window-detection.patch /tmp/opengamepadui.patch
 COPY patches/opengamepadui-overlay-return.patch /tmp/opengamepadui-overlay-return.patch
 COPY patches/opengamepadui-overlay-menu.patch /tmp/opengamepadui-overlay-menu.patch
+COPY patches/opengamepadui-final-overlay-cleanup.patch /tmp/opengamepadui-final-overlay-cleanup.patch
 COPY patches/opengamepadui-godot-4.7-maximum-size.patch /tmp/opengamepadui-godot-4.7-maximum-size.patch
 COPY patches/opengamepadui-launcher-exit-cleanup.patch /tmp/opengamepadui-launcher-exit-cleanup.patch
 COPY plugins/wolf-desktop-input /src/plugins/wolf-desktop-input
@@ -90,6 +91,7 @@ RUN patch --strip=1 < /tmp/opengamepadui-godot-4.7-maximum-size.patch && \
     patch --strip=1 < /tmp/opengamepadui-launcher-exit-cleanup.patch && \
     patch --strip=1 < /tmp/opengamepadui-overlay-return.patch && \
     patch --strip=1 < /tmp/opengamepadui-overlay-menu.patch && \
+    patch --strip=1 < /tmp/opengamepadui-final-overlay-cleanup.patch && \
     sed -i 's|rootfs,sandbox,plugins,|rootfs,sandbox,plugins/*,|' \
         /src/export_presets.cfg && \
     cat /tmp/wolf-desktop-input-export.cfg >> /src/export_presets.cfg
@@ -151,13 +153,17 @@ COPY session/gamescope-session-opengamepadui.desktop \
 COPY --chmod=755 scripts/init-services.sh /etc/cont-init.d/50-opengamepadui-services
 COPY --chmod=755 scripts/authorize-inputplumber-user.sh /opt/gow/authorize-inputplumber-user
 COPY --chmod=755 scripts/inputplumber_x11_bridge.py /opt/gow/inputplumber_x11_bridge.py
+COPY tests/test_inputplumber_x11_bridge.py /tmp/test_inputplumber_x11_bridge.py
 RUN bash -n /etc/cont-init.d/50-opengamepadui-services && \
     bash -n /opt/gow/authorize-inputplumber-user && \
+    INPUTPLUMBER_X11_BRIDGE=/opt/gow/inputplumber_x11_bridge.py \
+        python3 /tmp/test_inputplumber_x11_bridge.py && \
     useradd --system --no-create-home ogui-polkit-test && \
     /opt/gow/authorize-inputplumber-user ogui-polkit-test && \
     /opt/gow/authorize-inputplumber-user ogui-polkit-test && \
     id -nG ogui-polkit-test | tr ' ' '\n' | grep -qx inputplumber && \
-    userdel ogui-polkit-test
+    userdel ogui-polkit-test && \
+    rm -f /tmp/test_inputplumber_x11_bridge.py
 COPY --chmod=755 scripts/startup.sh /opt/gow/startup.sh
 
 # ---------------------------------------------------------------------------

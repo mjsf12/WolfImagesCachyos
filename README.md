@@ -225,7 +225,7 @@ last game exits, the patch also disables `STEAM_OVERLAY` and restores Gamescope'
 idle baselayer list, preventing the menu from remaining transparent over a
 black screen. Wine and launcher helpers that outlive a closed game are finalized
 after a bounded grace period so they cannot retain a stale game baselayer.
-Twelve headless Godot tests validate discovery, lifecycle, and state transitions
+Thirteen headless Godot tests validate discovery, lifecycle, and state transitions
 during the image build.
 
 OpenGamepadUI 0.46.0 is built with Godot 4.7.1. The image carries a small
@@ -246,8 +246,8 @@ is written to the live InputPlumber composite captured from the device-added
 signal, even if OpenGamepadUI's local device cache is temporarily empty or
 already reports that mode. The plugin reads the live D-Bus property back, so a
 silently denied route change is reported as a failure instead of success.
-Nineteen additional tests validate the chord, route, authorization failure, and
-desktop profile. The plugin registers its procedural
+Twenty-two additional tests validate the chord, route, profile serialization,
+authorization failure, and desktop profile. The plugin registers its procedural
 Quick Bar page with an explicit title, avoiding OpenGamepadUI
 0.46.0's unsafe legacy `SectionLabel` lookup.
 

@@ -178,13 +178,9 @@ class X11Bridge:
             self.width,
             self.height,
         )
-        xtest.fake_input(
-            self.xdisplay,
-            X.MotionNotify,
-            root=self.root,
-            x=target_x,
-            y=target_y,
-        )
+        # Gamescope's nested Xwayland accepts WarpPointer but ignores XTEST
+        # MotionNotify events. Use the core request for absolute movement.
+        self.root.warp_pointer(target_x, target_y)
         self.xdisplay.sync()
         self.delta_x = 0
         self.delta_y = 0

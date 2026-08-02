@@ -1,0 +1,44 @@
+--- a/core/global/launch_manager.gd
++++ b/core/global/launch_manager.gd
+@@ -600,3 +600,10 @@ func _on_app_state_changed(from: RunningApp.STATE, to: RunningApp.STATE, app: Ru
+ 		state_machine.remove_state(in_game_state)
+ 		state_machine.remove_state(in_game_menu_state)
++		if _xwayland_ogui:
++			# state_exited fires before the state leaves the stack, so its
++			# callback can preserve overlay mode. Clear it after both removals.
++			_xwayland_ogui.set_overlay(
++				_ogui_window_id,
++				GamescopeSessionState.overlay_value_after_last_app_cleanup(),
++			)
+ 		all_apps_stopped.emit()
+--- a/core/systems/gamescope/gamescope_session_state.gd
++++ b/core/systems/gamescope/gamescope_session_state.gd
+@@ -20,6 +20,11 @@ static func overlay_value_after_exit(game_state_still_present: bool) -> int:
+ 	return overlay_value(game_state_still_present)
+ 
+ 
++## Last-app cleanup runs after in-game states have actually left the stack.
++static func overlay_value_after_last_app_cleanup() -> int:
++	return OVERLAY_DISABLED
++
++
+ ## Return the idle baselayer list, without AppIDs from exited games.
+ static func default_baselayer_apps(
+ 		extra_unknown_app_id: int,
+--- a/core/systems/gamescope/gamescope_session_state_test.gd
++++ b/core/systems/gamescope/gamescope_session_state_test.gd
+@@ -25,6 +25,14 @@ func test_keeps_overlay_visible_when_an_in_game_menu_is_pushed() -> void:
+ 	)
+ 
+ 
++func test_last_app_cleanup_unconditionally_disables_overlay() -> void:
++	assert_eq(
++		SessionState.overlay_value_after_last_app_cleanup(),
++		0,
++		"No game remains underneath the frontend after final cleanup",
++	)
++
++
+ func test_restores_idle_baselayer_apps_after_last_game_exits() -> void:
+ 	var actual := SessionState.default_baselayer_apps(413091, 769)
+ 

@@ -224,7 +224,7 @@ launcher corrigido usa esse AppId como fallback quando Bottles, Heroic, Lutris
 ou outro launcher intermediário remove `OGUI_ID` do processo do jogo. Ao fechar
 o último jogo, o patch também desativa `STEAM_OVERLAY` e restaura a lista de
 baselayer do Gamescope; isso evita que o menu continue transparente sobre uma
-tela preta. Doze testes headless do Godot validam a descoberta, o ciclo de vida
+tela preta. Treze testes headless do Godot validam a descoberta, o ciclo de vida
 e as transições de estado durante o build da imagem.
 
 A imagem também instala o plugin `Wolf Desktop Input`. Para controles genéricos
@@ -237,8 +237,8 @@ jogo é restaurado ao sair do modo mouse. A barra rápida permite alterar o modo
 o atalho genérico, a ativação automática para launchers e a velocidade do
 ponteiro. Cada mudança de rota é confirmada relendo a propriedade D-Bus real;
 assim uma operação negada silenciosamente não é mais registrada como sucesso.
-Dezenove testes adicionais validam atalhos, rotas, falha de autorização e o
-perfil desktop. O plugin registra sua página procedural com um título explícito na
+Vinte e dois testes adicionais validam atalhos, rotas, serialização de perfil,
+falha de autorização e o perfil desktop. O plugin registra sua página procedural com um título explícito na
 barra rápida, evitando a busca legada insegura por `SectionLabel` do
 OpenGamepadUI 0.46.0.
 

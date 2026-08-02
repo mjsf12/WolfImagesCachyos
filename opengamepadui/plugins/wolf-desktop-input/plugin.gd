@@ -5,6 +5,9 @@ const InterceptPolicy := preload("res://plugins/wolf-desktop-input/core/intercep
 const InterceptReconciler := preload(
 	"res://plugins/wolf-desktop-input/core/intercept_reconciler.gd"
 )
+const ProfileReconciler := preload(
+	"res://plugins/wolf-desktop-input/core/profile_reconciler.gd"
+)
 const QuickBarRegistration := preload(
 	"res://plugins/wolf-desktop-input/core/quick_bar_registration.gd"
 )
@@ -12,6 +15,7 @@ const SETTINGS_SECTION := "plugin.wolf-desktop-input"
 const SOURCE_PROFILE := "profiles/desktop_mouse.json"
 const USER_PROFILE_DIR := "user://data/gamepad/profiles"
 const USER_PROFILE := USER_PROFILE_DIR + "/wolf_desktop_mouse.json"
+const DESKTOP_PROFILE_NAME := "Wolf Desktop Mouse"
 const GUIDE_ACTION := "ogui_guide_action"
 
 var input_plumber := load("res://core/systems/input/input_plumber.tres") as InputPlumberInstance
@@ -222,23 +226,27 @@ func _on_dbus_input_event(event: String, value: float, device_path: String) -> v
 
 
 func _set_desktop_mode(enabled: bool, show_notification: bool = true) -> void:
+	var requested_enabled := enabled
+	if requested_enabled:
+		enabled = _apply_desktop_profile()
+	if not enabled:
+		_restore_gamepad_profile()
+
 	if _desktop_mode == enabled:
-		if enabled:
-			_apply_desktop_profile()
 		_refresh_menus()
 		_sync_intercept_mode.call_deferred()
+		if requested_enabled and not enabled and show_notification:
+			notification_manager.show(Notification.new("Desktop mouse failed to load"))
 		return
 
 	_desktop_mode = enabled
-	if enabled:
-		_apply_desktop_profile()
-	else:
-		_restore_gamepad_profile()
 	_refresh_menus()
 
 	if show_notification:
 		var text := "Desktop mouse enabled"
-		if not enabled:
+		if requested_enabled and not enabled:
+			text = "Desktop mouse failed to load"
+		elif not enabled:
 			text = "Gamepad profile restored"
 		notification_manager.show(Notification.new(text))
 	logger.info("Desktop mode: " + str(enabled))
@@ -248,13 +256,30 @@ func _set_desktop_mode(enabled: bool, show_notification: bool = true) -> void:
 	_sync_intercept_mode.call_deferred()
 
 
-func _apply_desktop_profile() -> void:
+func _apply_desktop_profile() -> bool:
 	if not FileAccess.file_exists(USER_PROFILE):
 		_install_desktop_profile()
 	if not FileAccess.file_exists(USER_PROFILE):
 		logger.error("Desktop profile is unavailable: " + USER_PROFILE)
-		return
+		return false
 	launch_manager.set_gamepad_profile(USER_PROFILE)
+	var devices := InterceptReconciler.collect_devices(
+		input_plumber.get_composite_devices(),
+		_composite_devices,
+	)
+	var confirmed := ProfileReconciler.apply_profile(
+		devices,
+		USER_PROFILE,
+		DESKTOP_PROFILE_NAME,
+	)
+	if confirmed == 0:
+		logger.error(
+			"InputPlumber did not confirm the desktop profile; "
+			+ "check profile serialization and D-Bus authorization"
+		)
+		return false
+	logger.info("Desktop profile confirmed on " + str(confirmed) + " composite(s)")
+	return true
 
 
 func _restore_gamepad_profile() -> void:
@@ -289,7 +314,7 @@ func _install_desktop_profile() -> void:
 	if not destination:
 		logger.error("Unable to write desktop profile: " + USER_PROFILE)
 		return
-	destination.store_string(JSON.stringify(profile, "\t") + "\n")
+	destination.store_string(ProfileReconciler.serialize(profile))
 	logger.info("Installed desktop profile with speed " + str(_mouse_speed))
 
 
