@@ -30,8 +30,15 @@ func test_desktop_profile_preserves_global_shortcuts() -> void:
 	var file := FileAccess.open(PROFILE_PATH, FileAccess.READ)
 	var profile = JSON.parse_string(file.get_as_text())
 	var targets := {}
+	var source_buttons: Array[String] = []
 	for mapping: Dictionary in profile["mapping"]:
 		targets[mapping["name"]] = mapping["target_events"]
+		var source: Dictionary = mapping.get("source_event", {})
+		var gamepad: Dictionary = source.get("gamepad", {})
+		if gamepad.has("button"):
+			source_buttons.append(gamepad["button"] as String)
 
 	assert_eq(targets["Guide"][0]["dbus"], "ui_guide")
 	assert_eq(targets["Quick Access"][0]["dbus"], "ui_quick")
+	assert_false("Start" in source_buttons, "Start must remain available to the Guide chord")
+	assert_false("Select" in source_buttons, "Select must remain available to the Guide chord")

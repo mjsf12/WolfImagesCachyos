@@ -56,6 +56,10 @@ func _ready() -> void:
 		logger.warn("Official InputManager was not found during plugin startup")
 	_connect_runtime_signals()
 	_initialize_inputplumber()
+	# Card UI also configures the Guide interception during startup. Reapply our
+	# global activation after the current frame so generic-controller chords win
+	# regardless of node/plugin initialization order.
+	_configure_activation.call_deferred()
 
 	# Never carry desktop mode across a frontend restart or plugin update.
 	_desktop_mode = false
@@ -120,6 +124,7 @@ func _disconnect_runtime_signals() -> void:
 func _initialize_inputplumber() -> void:
 	for device: CompositeDevice in input_plumber.get_composite_devices():
 		_on_device_added(device)
+	_configure_activation()
 
 
 func _on_device_added(device: CompositeDevice) -> void:
@@ -165,12 +170,16 @@ func _apply_activation(device: CompositeDevice) -> void:
 	)
 
 
+func _configure_activation() -> void:
+	var triggers := ShortcutState.activation_triggers(_generic_shortcut)
+	input_plumber.set_intercept_activation(triggers, ShortcutState.GUIDE_CAPABILITY)
+
+
 func _apply_standard_guide_activation() -> void:
-	for device: CompositeDevice in input_plumber.get_composite_devices():
-		device.set_intercept_activation(
-			PackedStringArray([ShortcutState.GUIDE_CAPABILITY]),
-			ShortcutState.GUIDE_CAPABILITY,
-		)
+	input_plumber.set_intercept_activation(
+		PackedStringArray([ShortcutState.GUIDE_CAPABILITY]),
+		ShortcutState.GUIDE_CAPABILITY,
+	)
 
 
 func _on_dbus_input_event(event: String, value: float, device_path: String) -> void:
@@ -406,8 +415,7 @@ func _on_toggle_pressed() -> void:
 func _on_generic_shortcut_toggled(enabled: bool) -> void:
 	_generic_shortcut = enabled
 	settings_manager.set_value(SETTINGS_SECTION, "generic_shortcut", enabled)
-	for device: CompositeDevice in input_plumber.get_composite_devices():
-		_apply_activation(device)
+	_configure_activation()
 	_refresh_menus()
 
 

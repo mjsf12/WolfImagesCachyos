@@ -61,3 +61,97 @@ index 1204e55..c84721d 100644
  
          // Set the device to do non-blocking reads
          // TODO: use epoll to wake up when data is available
+diff --git a/src/input/composite_device/mod.rs b/src/input/composite_device/mod.rs
+index fd2fdd7..733aa59 100644
+--- a/src/input/composite_device/mod.rs
++++ b/src/input/composite_device/mod.rs
+@@ -937 +937,7 @@ impl CompositeDevice {
+-        let intercept = self.intercept_mode == InterceptMode::Pass;
++        // Multi-button activation chords emulate a button that the physical
++        // controller does not have (for example Start + Select as Guide).
++        // Keep recognizing those chords after the frontend has entered
++        // Always mode so they also work from OpenGamepadUI's own menus.
++        let intercept = self.intercept_mode == InterceptMode::Pass
++            || (self.intercept_mode == InterceptMode::Always
++                && self.intercept_activation_caps.len() > 1);
+@@ -1028 +1034,7 @@ impl CompositeDevice {
+-        if self.intercept_active_inputs.is_empty() && cap == first_cap {
++        let guide_capability = Capability::Gamepad(Gamepad::Button(GamepadButton::Guide));
++        let emulates_missing_guide = self.intercept_mode_target_cap == guide_capability
++            && !self.intercept_activation_caps.contains(&guide_capability);
++        if self.intercept_active_inputs.is_empty()
++            && (cap == first_cap
++                || (emulates_missing_guide && self.intercept_activation_caps.contains(cap)))
++        {
+@@ -2050,33 +2062,42 @@ impl CompositeDevice {
+                 // We must have a match, we are of the correct length and all capabilities matched.
+                 log::debug!("Found activation chord!");
+-                for c in self.intercept_activation_caps.clone() {
+-                    if self.active_inputs.contains(&c) {
+-                        log::trace!("Removed inactive capability: {c:?}");
+-                        let index = self.active_inputs.iter().position(|r| r == &c).unwrap();
+-                        self.active_inputs.remove(index);
+-                    }
+-                }
+-                self.intercept_active_inputs.clear();
+-
+                 self.set_intercept_mode(InterceptMode::Always).await;
+-                // Generate a new chord
++                // Keep the synthetic target pressed until one of the physical
++                // activation buttons is released. This lets consumers handle
++                // follow-up combinations such as Guide + A or Guide + X.
+                 let event = NativeEvent::new(
+                     self.intercept_mode_target_cap.clone(),
+                     InputValue::Bool(true),
+                 );
+-                let event2 = NativeEvent::new(
+-                    self.intercept_mode_target_cap.clone(),
+-                    InputValue::Bool(false),
+-                );
+-                let chord: Vec<NativeEvent> = vec![event, event2];
++                let chord: Vec<NativeEvent> = vec![event];
+                 log::trace!("Release new chord: {chord:?}");
+                 self.write_chord_events(chord).await?;
+                 return Ok(true);
+             } else if !is_pressed {
+                 log::debug!("It is an UP event!");
+-                // We only had a partial match and one of those events is released,
+-                // release it
+                 if self.intercept_active_inputs.contains(&cap) {
++                    // A complete activation chord is represented by the
++                    // synthetic target until the first trigger is released.
++                    if self.intercept_mode == InterceptMode::Always
++                        && self.intercept_active_inputs.len()
++                            == self.intercept_activation_caps.len()
++                    {
++                        for c in self.intercept_activation_caps.clone() {
++                            if let Some(index) = self.active_inputs.iter().position(|r| r == &c) {
++                                self.active_inputs.remove(index);
++                            }
++                        }
++                        self.intercept_active_inputs.clear();
++                        let event = NativeEvent::new(
++                            self.intercept_mode_target_cap.clone(),
++                            InputValue::Bool(false),
++                        );
++                        self.write_chord_events(vec![event]).await?;
++                        return Ok(true);
++                    }
++
++                    // We only had a partial match and one of those events is
++                    // released, so replay the original button as a click.
+                     let index = self
+                         .intercept_active_inputs
+                         .iter()
+@@ -2090,7 +2111,10 @@ impl CompositeDevice {
+                     return Ok(true);
+                 }
+             }
+-        } else if !self.intercept_active_inputs.is_empty() && is_pressed {
++        } else if self.intercept_mode == InterceptMode::Pass
++            && !self.intercept_active_inputs.is_empty()
++            && is_pressed
++        {
+             // Handle chords with partial matches. Up events will be handled normally.
+             log::debug!("This event is not what we're looking for.");
+             self.intercept_active_inputs.push(cap);
