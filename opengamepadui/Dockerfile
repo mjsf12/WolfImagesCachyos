@@ -162,6 +162,7 @@ COPY session/gamescope-session-opengamepadui.desktop \
 
 COPY --chmod=755 scripts/init-services.sh /etc/cont-init.d/50-opengamepadui-services
 COPY --chmod=755 scripts/authorize-inputplumber-user.sh /opt/gow/authorize-inputplumber-user
+COPY --chmod=755 scripts/configure_bottles_input.py /opt/gow/configure-bottles-input
 COPY --chmod=755 scripts/inputplumber_udev_metadata.sh /opt/gow/inputplumber-udev-metadata
 COPY scripts/inputplumber_gamescope_bridge.c /tmp/inputplumber_gamescope_bridge.c
 COPY --chmod=755 scripts/inputplumber_diagnostics.py /opt/gow/inputplumber_diagnostics.py
@@ -173,6 +174,7 @@ RUN cc -std=c11 -O2 -Wall -Wextra -Werror \
         $(pkg-config --libs libei-1.0) && \
     rm -f /tmp/inputplumber_gamescope_bridge.c && \
     /opt/gow/inputplumber-gamescope-bridge --self-test && \
+    /opt/gow/configure-bottles-input --self-test && \
     /opt/gow/inputplumber-udev-metadata --self-test && \
     bash -n /etc/cont-init.d/50-opengamepadui-services && \
     bash -n /opt/gow/authorize-inputplumber-user && \

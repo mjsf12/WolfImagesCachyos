@@ -57,3 +57,34 @@ func test_does_not_report_a_silently_rejected_profile_as_loaded() -> void:
 
 	assert_eq(device.attempts, 1)
 	assert_eq(confirmed, 0)
+
+
+func test_counts_only_devices_with_the_confirmed_profile() -> void:
+	var accepted := AcceptedDevice.new()
+	var denied := DeniedDevice.new()
+
+	assert_eq(
+		ProfileReconciler.count_profile(
+			[accepted, denied],
+			"OpenGamepadUI Default",
+		),
+		2,
+	)
+	accepted.profile_name = "Wolf Desktop Mouse"
+	assert_eq(
+		ProfileReconciler.count_profile(
+			[accepted, denied],
+			"OpenGamepadUI Default",
+		),
+		1,
+	)
+
+
+func test_reads_profile_name_from_json() -> void:
+	assert_eq(
+		ProfileReconciler.profile_name_from_path(
+			"res://assets/gamepad/profiles/default.json",
+		),
+		"OpenGamepadUI Default",
+	)
+	assert_eq(ProfileReconciler.profile_name_from_path("user://missing.json"), "")

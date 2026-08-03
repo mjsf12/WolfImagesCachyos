@@ -39,6 +39,16 @@ if [ -f "${plugin_source}" ]; then
     install -m 0644 "${plugin_source}" "${plugin_dir}/wolf-desktop-input.zip"
 fi
 
+# Bottles deliberately limits inherited system variables. Configure every
+# existing bottle through its public CLI so Winebus receives the same SDL
+# source filter used by Proton, Lutris and Heroic.
+bottles_input_configurator=/opt/gow/configure-bottles-input
+if [ -x "${bottles_input_configurator}" ]; then
+    if ! "${bottles_input_configurator}"; then
+        gow_log "WARN: Could not configure the authoritative Bottles input route"
+    fi
+fi
+
 if [ -n "${DISPLAY:-}" ]; then
     gow_log "Waiting for X Server ${DISPLAY} to be available"
     /opt/gow/wait-x11

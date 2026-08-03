@@ -44,6 +44,10 @@ func handle_event(device_path: String, event: String, value: float) -> bool:
 		return false
 
 	_toggle_pressed[device_path] = true
+	# Consuma o Guide junto com a ação. A troca de perfil pode fazer o
+	# InputPlumber omitir o evento de soltura do Guide; sem isso, um X isolado
+	# posterior reutiliza o Guide antigo e liga o modo desktop novamente.
+	_guide_pressed[device_path] = false
 	return true
 
 

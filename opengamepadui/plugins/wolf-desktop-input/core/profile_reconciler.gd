@@ -24,3 +24,27 @@ static func apply_profile(
 		if str(device.profile_name) == expected_name:
 			confirmed += 1
 	return confirmed
+
+
+## Count live composites that confirm the requested profile name.
+static func count_profile(devices: Array, expected_name: String) -> int:
+	var confirmed := 0
+	for device in devices:
+		if not is_instance_valid(device):
+			continue
+		if str(device.profile_name) == expected_name:
+			confirmed += 1
+	return confirmed
+
+
+## Read the profile name without depending on InputPlumberProfile internals.
+static func profile_name_from_path(path: String) -> String:
+	if path.is_empty() or not FileAccess.file_exists(path):
+		return ""
+	var file := FileAccess.open(path, FileAccess.READ)
+	if not file:
+		return ""
+	var parsed = JSON.parse_string(file.get_as_text())
+	if not parsed is Dictionary:
+		return ""
+	return str(parsed.get("name", ""))

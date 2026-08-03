@@ -19,6 +19,8 @@ const SOURCE_PROFILE := "profiles/desktop_mouse.json"
 const USER_PROFILE_DIR := "user://data/gamepad/profiles"
 const USER_PROFILE := USER_PROFILE_DIR + "/wolf_desktop_mouse.json"
 const DESKTOP_PROFILE_NAME := "Wolf Desktop Mouse"
+const DEFAULT_GAMEPAD_PROFILE := USER_PROFILE_DIR + "/global_default.json"
+const DEFAULT_TARGET_GAMEPAD := "xbox-series"
 const GUIDE_ACTION := "ogui_guide_action"
 
 var input_plumber := load("res://core/systems/input/input_plumber.tres") as InputPlumberInstance
@@ -396,8 +398,97 @@ func _restore_gamepad_profile(reason: String = "unspecified") -> void:
 		launch_manager.set_app_gamepad_profile(current_app)
 	else:
 		launch_manager.set_gamepad_profile("")
-	_trace_devices("gamepad_profile_restore_after", reason)
+
+	# O OpenGamepadUI 0.46 pode retornar da API acima sem carregar nada quando
+	# get_target_devices() não consegue resolver o tipo do alvo já existente.
+	# Não aceite essa restauração silenciosa: resolva a seleção oficial e force
+	# o mesmo caminho diretamente no CompositeDevice se o perfil não mudou.
+	var selection := _resolve_gamepad_profile()
+	var profile_path := selection["path"] as String
+	var target_gamepad := selection["target"] as String
+	var expected_name := ProfileReconciler.profile_name_from_path(profile_path)
+	var devices := InterceptReconciler.collect_devices(
+		input_plumber.get_composite_devices(),
+		_composite_devices,
+	)
+	var confirmed := ProfileReconciler.count_profile(devices, expected_name)
+	if expected_name.is_empty():
+		logger.error("Unable to resolve the gamepad profile: " + profile_path)
+	elif confirmed < devices.size():
+		logger.warn(
+			"Official gamepad restore was not confirmed; applying "
+			+ profile_path
+			+ " directly",
+		)
+		for device in devices:
+			if not is_instance_valid(device):
+				continue
+			InputPlumber.load_target_modified_profile(
+				device,
+				profile_path,
+				target_gamepad,
+			)
+		confirmed = ProfileReconciler.count_profile(devices, expected_name)
+	if confirmed < devices.size():
+		logger.error(
+			"InputPlumber did not confirm gamepad profile restore; expected "
+			+ expected_name
+			+ " on "
+			+ str(devices.size())
+			+ " composite(s), confirmed "
+			+ str(confirmed),
+		)
+	_trace_devices("gamepad_profile_restore_after", reason, {
+		"profile_path": profile_path,
+		"target_gamepad": target_gamepad,
+		"expected_profile": expected_name,
+		"confirmed": confirmed,
+	})
 	_trace_devices.bind("gamepad_profile_restore_deferred", reason).call_deferred()
+
+
+func _resolve_gamepad_profile() -> Dictionary:
+	var profile_path := ""
+	var target_gamepad := ""
+	var item := launch_manager.get_current_app_library_item()
+	if item:
+		profile_path = str(
+			settings_manager.get_library_value(item, "gamepad_profile", ""),
+		)
+		target_gamepad = str(
+			settings_manager.get_library_value(
+				item,
+				"gamepad_profile_target",
+				"",
+			),
+		)
+	if profile_path.is_empty():
+		var default_path := DEFAULT_GAMEPAD_PROFILE
+		if is_instance_valid(_input_manager):
+			default_path = _input_manager.get_default_global_profile_path()
+		profile_path = str(
+			settings_manager.get_value("input", "gamepad_profile", default_path),
+		)
+	if not FileAccess.file_exists(profile_path):
+		logger.warn(
+			"Configured gamepad profile is unavailable; using global default: "
+			+ profile_path,
+		)
+		profile_path = DEFAULT_GAMEPAD_PROFILE
+	if target_gamepad.is_empty():
+		target_gamepad = str(
+			settings_manager.get_value(
+				"input",
+				"gamepad_profile_target",
+				DEFAULT_TARGET_GAMEPAD,
+			),
+		)
+	if target_gamepad.is_empty():
+		target_gamepad = DEFAULT_TARGET_GAMEPAD
+	return {
+		"path": profile_path,
+		"target": target_gamepad,
+	}
 
 
 func _install_desktop_profile() -> void:

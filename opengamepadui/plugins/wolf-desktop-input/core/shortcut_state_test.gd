@@ -28,6 +28,12 @@ func test_guide_and_action_toggle_only_once_per_press() -> void:
 	assert_true(state.handle_event(path, "ui_action", 1.0))
 	assert_false(state.handle_event(path, "ui_action", 1.0))
 	assert_false(state.handle_event(path, "ui_action", 0.0))
+	assert_false(
+		state.handle_event(path, "ui_action", 1.0),
+		"A missing Guide release must not leave a stale shortcut",
+	)
+	assert_false(state.handle_event(path, "ui_action", 0.0))
+	assert_false(state.handle_event(path, "ui_guide", 1.0))
 	assert_true(state.handle_event(path, "ui_action", 1.0))
 
 
