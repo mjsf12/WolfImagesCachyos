@@ -741,8 +741,12 @@ func _on_global_state_changed(from: State, to: State) -> void:
 
 func _sync_intercept_mode(reason: String = "unspecified") -> void:
 	var guarded_desktop_mode := _profile_transition.route_requires_desktop_guard()
+	var foreground_state := global_state_machine.current_state()
+	var game_running := global_state_machine.has_state(in_game_state)
+	var game_in_foreground := foreground_state == in_game_state
 	var mode := InterceptPolicy.desired_mode(
-		global_state_machine.has_state(in_game_state),
+		game_running,
+		game_in_foreground,
 		popup_state_machine.current_state() != null,
 		guarded_desktop_mode,
 	)
@@ -755,6 +759,9 @@ func _sync_intercept_mode(reason: String = "unspecified") -> void:
 	_trace_devices("intercept_sync_before", reason, {
 		"desired_mode": mode,
 		"desktop_guard": guarded_desktop_mode,
+		"foreground_state": _state_name(foreground_state),
+		"game_running": game_running,
+		"game_in_foreground": game_in_foreground,
 	})
 	var writes := InterceptReconciler.apply_mode(
 		input_plumber,
