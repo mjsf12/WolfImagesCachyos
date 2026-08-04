@@ -1,7 +1,7 @@
 {
   "plugin.id": "wolf-desktop-input",
   "plugin.name": "Wolf Desktop Input",
-  "plugin.version": "1.0.17",
+  "plugin.version": "1.0.18",
   "plugin.min-api-version": "2.0.0",
   "plugin.link": "https://github.com/mjsf12/WolfImagesCachyos",
   "plugin.source": "https://github.com/mjsf12/WolfImagesCachyos",
