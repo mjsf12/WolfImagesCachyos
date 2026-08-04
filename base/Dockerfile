@@ -27,6 +27,8 @@ RUN pacman -Syu --noconfirm && \
         util-linux dbus \
         wayland libegl libgl \
         mesa vulkan-mesa-layers \
+        libglvnd lib32-libglvnd \
+        vulkan-icd-loader lib32-vulkan-icd-loader \
         xorg-xdpyinfo \
         gamescope xorg-xwayland sway \
         waybar ttf-dejavu noto-fonts-cjk otf-font-awesome \
@@ -34,8 +36,14 @@ RUN pacman -Syu --noconfirm && \
         kitty nano psmisc \
         mangohud lib32-mangohud \
         xdg-desktop-portal xdg-desktop-portal-gtk \
-        nvidia-utils lib32-nvidia-utils \
         glibc-locales && \
+    pacman -Q \
+        libglvnd lib32-libglvnd \
+        vulkan-icd-loader lib32-vulkan-icd-loader && \
+    if pacman -Q nvidia-utils lib32-nvidia-utils >/dev/null 2>&1; then \
+        echo 'Versioned Nvidia userspace libraries must come from the Wolf driver volume.' >&2; \
+        exit 1; \
+    fi && \
     pacman -Scc --noconfirm
 
 # Configura localização
@@ -44,10 +52,12 @@ RUN sed -i 's/#pt_BR.UTF-8 UTF-8/pt_BR.UTF-8 UTF-8/' /etc/locale.gen && \
     sed -i 's/#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
     locale-gen
 
-# Cria a estrutura de diretórios do GOW
+# Cria a estrutura de diretórios do GOW. O volume gerado pelo Wolf é a fonte
+# autoritativa das bibliotecas Nvidia de 64 e 32 bits; o prefixo 00 garante que
+# elas precedam qualquer biblioteca de fallback instalada por uma imagem filha.
 RUN mkdir -p /opt/gow/bash-lib /etc/cont-init.d /run/user && \
     mkdir -p /etc/ld.so.conf.d && \
-    echo -e "/usr/nvidia/lib\n/usr/nvidia/lib32" > /etc/ld.so.conf.d/nvidia.conf
+    printf '/usr/nvidia/lib\n/usr/nvidia/lib32\n' > /etc/ld.so.conf.d/00-nvidia.conf
 
 # Biblioteca utilitária (sourced por todos os scripts GOW)
 RUN cat > /opt/gow/bash-lib/utils.sh << 'EOF'
