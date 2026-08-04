@@ -22,6 +22,7 @@ RUN mkdir -p /tmp/nohooks && \
 
 RUN pacman -Syyu --noconfirm && \
     pacman -S --noconfirm --needed \
+        vulkan-swrast lib32-vulkan-swrast \
         pegasus-frontend-git \
         heroic-games-launcher-bin \
         lutris \
@@ -38,10 +39,17 @@ RUN pacman -Syyu --noconfirm && \
         gsettings-desktop-schemas \
         gamemode lib32-gamemode \
         foot http-parser proton-cachyos proton-cachyos-slr cachyos/umu-launcher cachyos-gaming-applications cachyos-gaming-meta \
-        xfce4 xfce4-whiskermenu-plugin \
+        exo garcon thunar thunar-volman tumbler \
+        xfce4-appfinder xfce4-panel xfce4-power-manager xfce4-session \
+        xfce4-settings xfce4-terminal xfconf xfdesktop xfwm4 \
+        xfce4-whiskermenu-plugin \
         mousepad ristretto \
         python python-pip python-protobuf yq librsvg papirus-icon-theme shared-mime-info \
         ttf-dejavu && \
+    if pacman -Q nvidia-utils lib32-nvidia-utils >/dev/null 2>&1; then \
+        echo 'Versioned Nvidia userspace libraries must come from the Wolf driver volume.' >&2; \
+        exit 1; \
+    fi && \
     pacman -Scc --noconfirm
 
 # Hooks falharam no build (sandbox de rede), compilar manualmente
