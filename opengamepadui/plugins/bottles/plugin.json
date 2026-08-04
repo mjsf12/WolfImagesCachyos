@@ -1,0 +1,15 @@
+{
+  "plugin.id": "bottles",
+  "plugin.name": "Bottles",
+  "plugin.version": "0.1.2",
+  "plugin.min-api-version": "2.0.0",
+  "plugin.link": "https://usebottles.com",
+  "plugin.description": "Bottles library plugin for OpenGamepadUI",
+  "store.tags": [
+    "bottles",
+    "library"
+  ],
+  "store.images": [],
+  "author.name": "Wolf Containers",
+  "entrypoint": "plugin.gd"
+}

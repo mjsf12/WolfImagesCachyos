@@ -1,0 +1,12 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://plugins/heroic/core/library.gd" id="1_library"]
+[ext_resource type="Texture2D" path="res://plugins/heroic/assets/heroic.png" id="2_icon"]
+
+[node name="HeroicLibrary" type="Node"]
+script = ExtResource("1_library")
+library_id = "heroic"
+library_icon = ExtResource("2_icon")
+supports_uninstall = false
+logger_name = "HeroicLibrary"
+

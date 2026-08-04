@@ -30,14 +30,13 @@ fi
 ensure_writable_dir "${HOME}/.config/gamescope"
 ensure_writable_dir "${HOME}/.local/share/opengamepadui"
 
-# Instala/atualiza o plugin Wolf fornecido pela imagem no diretório persistente
-# que o carregador oficial do OpenGamepadUI inspeciona durante a inicialização.
-plugin_source=/usr/share/opengamepadui/plugins/wolf-desktop-input.zip
+# Instala/atualiza todos os plugins empacotados pela imagem no diretório
+# persistente que o carregador oficial inspeciona durante a inicialização.
 plugin_dir="${HOME}/.local/share/opengamepadui/plugins"
-if [ -f "${plugin_source}" ]; then
-    ensure_writable_dir "${plugin_dir}"
-    install -m 0644 "${plugin_source}" "${plugin_dir}/wolf-desktop-input.zip"
-fi
+ensure_writable_dir "${plugin_dir}"
+/opt/gow/install-opengamepadui-plugins \
+    /usr/share/opengamepadui/plugins \
+    "${plugin_dir}"
 
 # Bottles deliberately limits inherited system variables. Configure every
 # existing bottle through its public CLI so Winebus receives the same SDL

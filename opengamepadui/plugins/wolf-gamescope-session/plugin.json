@@ -1,0 +1,14 @@
+{
+  "plugin.id": "wolf-gamescope-session",
+  "plugin.name": "Wolf Gamescope Session",
+  "plugin.version": "1.0.0",
+  "plugin.min-api-version": "2.0.0",
+  "plugin.link": "https://github.com/mjsf12/WolfImagesCachyos",
+  "plugin.source": "https://github.com/mjsf12/WolfImagesCachyos",
+  "plugin.description": "Race-safe Gamescope overlay lifecycle for the Wolf OpenGamepadUI session.",
+  "store.tags": ["gamescope", "overlay", "session"],
+  "store.images": [],
+  "author.name": "Wolf Containers",
+  "author.email": "",
+  "entrypoint": "plugin.gd"
+}

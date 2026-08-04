@@ -78,23 +78,37 @@ RUN curl --fail --location --retry 3 \
         --strip-components=1 --directory /src && \
     rm -f /tmp/opengamepadui-source.tar.gz
 
-COPY patches/opengamepadui-gamescope-appid-window-detection.patch /tmp/opengamepadui.patch
-COPY patches/opengamepadui-overlay-return.patch /tmp/opengamepadui-overlay-return.patch
-COPY patches/opengamepadui-overlay-menu.patch /tmp/opengamepadui-overlay-menu.patch
-COPY patches/opengamepadui-final-overlay-cleanup.patch /tmp/opengamepadui-final-overlay-cleanup.patch
-COPY patches/opengamepadui-godot-4.7-maximum-size.patch /tmp/opengamepadui-godot-4.7-maximum-size.patch
-COPY patches/opengamepadui-launcher-exit-cleanup.patch /tmp/opengamepadui-launcher-exit-cleanup.patch
-COPY plugins/wolf-desktop-input /src/plugins/wolf-desktop-input
+COPY patches /tmp/opengamepadui-patches
+COPY patches-backup/overlay /tmp/opengamepadui-overlay-backup
+COPY plugins /src/plugins
 COPY plugin-build/wolf-desktop-input-export.cfg /tmp/wolf-desktop-input-export.cfg
-RUN patch --strip=1 < /tmp/opengamepadui-godot-4.7-maximum-size.patch && \
-    patch --strip=1 < /tmp/opengamepadui.patch && \
-    patch --strip=1 < /tmp/opengamepadui-launcher-exit-cleanup.patch && \
-    patch --strip=1 < /tmp/opengamepadui-overlay-return.patch && \
-    patch --strip=1 < /tmp/opengamepadui-overlay-menu.patch && \
-    patch --strip=1 < /tmp/opengamepadui-final-overlay-cleanup.patch && \
+COPY plugin-build/bundled-plugins-export.cfg /tmp/bundled-plugins-export.cfg
+COPY tests/test_heroic_list.py /tmp/test_heroic_list.py
+COPY tests/test_bundled_plugins.py /tmp/test_bundled_plugins.py
+RUN cmp \
+        /tmp/opengamepadui-patches/opengamepadui-overlay-return.patch \
+        /tmp/opengamepadui-overlay-backup/opengamepadui-overlay-return.patch && \
+    cmp \
+        /tmp/opengamepadui-patches/opengamepadui-overlay-menu.patch \
+        /tmp/opengamepadui-overlay-backup/opengamepadui-overlay-menu.patch && \
+    cmp \
+        /tmp/opengamepadui-patches/opengamepadui-final-overlay-cleanup.patch \
+        /tmp/opengamepadui-overlay-backup/opengamepadui-final-overlay-cleanup.patch && \
+    base64 --decode \
+        /src/plugins/heroic/assets/heroic.png.base64 \
+        > /src/plugins/heroic/assets/heroic.png && \
+    echo 'a57601ee8357f0b51d987a03eddeef7bab4a777955b9fe86b9f8d6a7891aa654  /src/plugins/heroic/assets/heroic.png' \
+        | sha256sum --check && \
+    patch --strip=1 < /tmp/opengamepadui-patches/opengamepadui-godot-4.7-maximum-size.patch && \
+    patch --strip=1 < /tmp/opengamepadui-patches/opengamepadui-gamescope-appid-window-detection.patch && \
+    patch --strip=1 < /tmp/opengamepadui-patches/opengamepadui-launcher-exit-cleanup.patch && \
     sed -i 's|rootfs,sandbox,plugins,|rootfs,sandbox,plugins/*,|' \
         /src/export_presets.cfg && \
-    cat /tmp/wolf-desktop-input-export.cfg >> /src/export_presets.cfg
+    cat /tmp/wolf-desktop-input-export.cfg >> /src/export_presets.cfg && \
+    cat /tmp/bundled-plugins-export.cfg >> /src/export_presets.cfg && \
+    PYTHONDONTWRITEBYTECODE=1 \
+        HEROIC_LIST_HELPER=/src/plugins/heroic/scripts/heroic-list.py \
+        python3 /tmp/test_heroic_list.py
 
 # O editor carrega a variante debug durante import/test. As duas variantes usam
 # a extensão oficial 0.46.0 já instalada na etapa de runtime.
@@ -110,20 +124,36 @@ RUN cp \
         -gselect=gamescope_focusable_windows && \
     /usr/bin/godot --headless --path /src \
         --script res://addons/gut/gut_cmdln.gd \
-        -gselect=gamescope_session_state && \
-    /usr/bin/godot --headless --path /src \
-        --script res://addons/gut/gut_cmdln.gd \
         -gselect=window_exit_policy && \
     /usr/bin/godot --headless --path /src \
         --script res://addons/gut/gut_cmdln.gd \
         -gdir=res://plugins/wolf-desktop-input/core && \
-    mkdir -p /src/build && \
+    /usr/bin/godot --headless --path /src \
+        --script res://addons/gut/gut_cmdln.gd \
+        -gdir=res://plugins/wolf-gamescope-session/core && \
+    /usr/bin/godot --headless --path /src \
+        --script res://addons/gut/gut_cmdln.gd \
+        -gdir=res://plugins/bottles/core && \
+    mkdir -p /src/build/plugins && \
     /usr/bin/godot --headless --path /src \
         --export-pack "Linux/X11 x86_64" \
         /src/build/opengamepad-ui.pck && \
     /usr/bin/godot --headless --path /src \
         --export-pack "Wolf Desktop Input" \
-        /src/build/wolf-desktop-input.zip
+        /src/build/plugins/wolf-desktop-input.zip && \
+    /usr/bin/godot --headless --path /src \
+        --export-pack "Wolf Gamescope Session" \
+        /src/build/plugins/wolf-gamescope-session.zip && \
+    /usr/bin/godot --headless --path /src \
+        --export-pack "Lutris" \
+        /src/build/plugins/lutris.zip && \
+    /usr/bin/godot --headless --path /src \
+        --export-pack "Heroic" \
+        /src/build/plugins/heroic.zip && \
+    /usr/bin/godot --headless --path /src \
+        --export-pack "Bottles" \
+        /src/build/plugins/bottles.zip && \
+    python3 /tmp/test_bundled_plugins.py /src/build/plugins
 
 # Volte à imagem completa e troque somente os scripts/recursos Godot. O binário
 # e a GDExtension continuam byte a byte iguais aos do release oficial 0.46.0.
@@ -133,8 +163,8 @@ COPY --from=opengamepadui-pck-builder \
     /src/build/opengamepad-ui.pck \
     /usr/share/opengamepadui/opengamepad-ui.pck
 COPY --from=opengamepadui-pck-builder \
-    /src/build/wolf-desktop-input.zip \
-    /usr/share/opengamepadui/plugins/wolf-desktop-input.zip
+    /src/build/plugins/ \
+    /usr/share/opengamepadui/plugins/
 
 # Evita recursão de diálogos Zenity quando a camada Vulkan Gamescope WSI
 # decide continuar com um swapchain X11 normal.
@@ -164,6 +194,7 @@ COPY --chmod=755 scripts/init-services.sh /etc/cont-init.d/50-opengamepadui-serv
 COPY --chmod=755 scripts/authorize-inputplumber-user.sh /opt/gow/authorize-inputplumber-user
 COPY --chmod=755 scripts/configure_bottles_input.py /opt/gow/configure-bottles-input
 COPY --chmod=755 scripts/inputplumber_udev_metadata.sh /opt/gow/inputplumber-udev-metadata
+COPY --chmod=755 scripts/install-opengamepadui-plugins.sh /opt/gow/install-opengamepadui-plugins
 COPY scripts/inputplumber_gamescope_bridge.c /tmp/inputplumber_gamescope_bridge.c
 COPY --chmod=755 scripts/inputplumber_diagnostics.py /opt/gow/inputplumber_diagnostics.py
 COPY tests/test_inputplumber_diagnostics.py /tmp/test_inputplumber_diagnostics.py
@@ -176,8 +207,17 @@ RUN cc -std=c11 -O2 -Wall -Wextra -Werror \
     /opt/gow/inputplumber-gamescope-bridge --self-test && \
     /opt/gow/configure-bottles-input --self-test && \
     /opt/gow/inputplumber-udev-metadata --self-test && \
+    plugin_test_dir="$(mktemp -d /tmp/ogui-plugins.XXXXXXXX)" && \
+    /opt/gow/install-opengamepadui-plugins \
+        /usr/share/opengamepadui/plugins "${plugin_test_dir}" && \
+    test "$(find "${plugin_test_dir}" -maxdepth 1 -type f -name '*.zip' | wc -l)" -eq 5 && \
+    for plugin_archive in /usr/share/opengamepadui/plugins/*.zip; do \
+        cmp "${plugin_archive}" "${plugin_test_dir}/$(basename "${plugin_archive}")"; \
+    done && \
+    rm -rf "${plugin_test_dir}" && \
     bash -n /etc/cont-init.d/50-opengamepadui-services && \
     bash -n /opt/gow/authorize-inputplumber-user && \
+    bash -n /opt/gow/install-opengamepadui-plugins && \
     INPUTPLUMBER_DIAGNOSTICS=/opt/gow/inputplumber_diagnostics.py \
         python3 /tmp/test_inputplumber_diagnostics.py && \
     useradd --system --no-create-home ogui-polkit-test && \
@@ -187,6 +227,37 @@ RUN cc -std=c11 -O2 -Wall -Wextra -Werror \
     userdel ogui-polkit-test && \
     rm -f /tmp/test_inputplumber_diagnostics.py
 COPY --chmod=755 scripts/startup.sh /opt/gow/startup.sh
+
+# Load the exported PCK and every bundled plugin with the release binary. Godot
+# can export a resource pack even when a dynamically typed plugin entrypoint
+# fails only at load time, so this smoke test is intentionally separate from
+# the import/GUT suite. Rootless Buildah cannot execute a file capability, so
+# remove it for this headless invocation and restore/verify it in the same
+# layer before the image is committed.
+RUN smoke_home="$(mktemp -d /tmp/ogui-smoke-home.XXXXXXXX)" && \
+    setcap -r /usr/share/opengamepadui/opengamepad-ui.x86_64 && \
+    HOME="${smoke_home}" /opt/gow/install-opengamepadui-plugins \
+        /usr/share/opengamepadui/plugins \
+        "${smoke_home}/.local/share/opengamepadui/plugins" && \
+    (HOME="${smoke_home}" \
+        /usr/share/opengamepadui/opengamepad-ui.x86_64 \
+            --headless --quit-after 30 \
+            > /tmp/ogui-smoke.log 2>&1 \
+        || test "$?" -eq 139) && \
+    grep -q 'Initialized plugin: bottles' /tmp/ogui-smoke.log && \
+    grep -q 'Initialized plugin: heroic' /tmp/ogui-smoke.log && \
+    grep -q 'Initialized plugin: lutris' /tmp/ogui-smoke.log && \
+    grep -q 'Initialized plugin: wolf-desktop-input' /tmp/ogui-smoke.log && \
+    grep -q 'Loaded and assumed Gamescope overlay lifecycle ownership' \
+        /tmp/ogui-smoke.log && \
+    ! grep -Eq 'SCRIPT ERROR|Failed to load script|Required object .* is null' \
+        /tmp/ogui-smoke.log && \
+    setcap cap_sys_nice=eip \
+        /usr/share/opengamepadui/opengamepad-ui.x86_64 && \
+    getcap /usr/share/opengamepadui/opengamepad-ui.x86_64 \
+        | grep -q 'cap_sys_nice=eip' && \
+    rm -rf "${smoke_home}" \
+        /tmp/ogui-smoke.log
 
 # ---------------------------------------------------------------------------
 # BUILD:

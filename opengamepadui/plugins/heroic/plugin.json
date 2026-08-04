@@ -1,0 +1,14 @@
+{
+  "plugin.id": "heroic",
+  "plugin.name": "Heroic",
+  "plugin.version": "0.1.1",
+  "plugin.min-api-version": "2.0.0",
+  "plugin.description": "Heroic Games Launcher library plugin for OpenGamepadUI",
+  "store.tags": [
+    "heroic",
+    "library"
+  ],
+  "store.images": [],
+  "author.name": "Wolf Containers",
+  "entrypoint": "plugin.gd"
+}
