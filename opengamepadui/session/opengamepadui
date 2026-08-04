@@ -14,3 +14,41 @@ OGUI_BIN="${OGUI_BIN:-/usr/share/opengamepadui/opengamepad-ui.$(uname -m)}"
 # descartaria os patches de Gamescope, portanto o frontend embutido e sempre a
 # fonte de verdade desta sessao.
 CLIENTCMD="${OGUI_BIN} --skip-update-pack -- ${OPENGAMEPADUI_STARTUP_FLAGS:-}"
+
+# Em um backend aninhado, o Gamescope normalmente entrega o cursor ao
+# compositor externo por NestedHints e o remove do frame composto. O Wolf
+# transmite o frame, mas nao incorpora esse cursor separado ao stream. Forcar
+# a composicao faz o cursor virar uma camada normal do video recebido pelo
+# Moonlight. O gamescope-session-plus chama este hook depois de criar o socket
+# Wayland e antes de iniciar o OpenGamepadUI.
+post_gamescope_start() {
+    local attempt=1
+    local max_attempts="${GAMESCOPE_CURSOR_COMPOSITE_ATTEMPTS:-20}"
+
+    if [ "${GAMESCOPE_FORCE_CURSOR_COMPOSITE:-1}" != "1" ]; then
+        return 0
+    fi
+
+    if ! command -v gamescopectl >/dev/null 2>&1; then
+        printf '%s\n' \
+            'OpenGamepadUI session: gamescopectl not found; cursor composition was not forced' \
+            >&2
+        return 0
+    fi
+
+    while [ "${attempt}" -le "${max_attempts}" ]; do
+        if gamescopectl cursor_composite 2 >/dev/null 2>&1; then
+            printf '%s\n' \
+                'OpenGamepadUI session: Gamescope cursor composition enabled' \
+                >&2
+            return 0
+        fi
+        attempt=$((attempt + 1))
+        sleep 0.1
+    done
+
+    printf '%s\n' \
+        'OpenGamepadUI session: could not enable Gamescope cursor composition' \
+        >&2
+    return 0
+}
