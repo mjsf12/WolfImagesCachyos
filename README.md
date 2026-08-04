@@ -204,6 +204,10 @@ docker build -t gow/cachyos-pegasus --build-arg BASE_IMAGE=gow/cachyos-base NewI
 
 ### OpenGamepadUI with Gamescope
 
+The complete technical runbook, including architecture, fix history, patches,
+plugins, server deployment, and diagnostics, is available at
+[`opengamepadui/CONTINUIDADE-E-DEBUG.md`](opengamepadui/CONTINUIDADE-E-DEBUG.md).
+
 OpenGamepadUI uses Gamescope by default; do not set `RUN_SWAY` for this
 profile. The image installs a patched InputPlumber 0.78.0 build that:
 
@@ -212,8 +216,8 @@ profile. The image installs a patched InputPlumber 0.78.0 build that:
 - creates the `/dev/input` watcher before Wolf connects a controller;
 - adds the dynamic session user to InputPlumber's polkit-authorized group before
   its final login, allowing intercept, profile, target, and mouse D-Bus writes;
-- exposes the controller to OpenGamepadUI over D-Bus without `EVIOCGRAB`, so
-  the same controller remains available after a game starts;
+- exclusively owns Wolf's source controller and exposes its D-Bus events to
+  OpenGamepadUI; games see only InputPlumber's virtual Xbox target;
 - enables D-Bus interception when a new composite controller starts in mode
   `0`, without overriding OpenGamepadUI's in-game mode `1`.
 
@@ -221,18 +225,18 @@ The build also patches OpenGamepadUI 0.46.0 window discovery. Gamescope
 publishes focusable X11 windows as `[window_id, app_id, pid]` triplets; the
 patched launcher uses that AppId as a fallback when Bottles, Heroic, Lutris, or
 another intermediary launcher removes `OGUI_ID` from the game process. When the
-last game exits, the patch also disables `STEAM_OVERLAY` and restores Gamescope's
-idle baselayer list, preventing the menu from remaining transparent over a
-black screen. Wine and launcher helpers that outlive a closed game are finalized
-after a bounded grace period so they cannot retain a stale game baselayer.
-Thirteen headless Godot tests validate discovery, lifecycle, and state transitions
-during the image build.
+last game exits, the `Wolf Gamescope Session` plugin disables `STEAM_OVERLAY`
+and restores Gamescope's idle baselayer list, preventing the menu from remaining
+transparent over a black screen. The former overlay patches remain as backups
+but are not applied alongside the plugin. Wine and launcher helpers that
+outlive a closed game are finalized after a bounded grace period so they cannot
+retain a stale game baselayer.
 
 OpenGamepadUI 0.46.0 is built with Godot 4.7.1. The image carries a small
 compatibility patch for the new native `Control.custom_maximum_size` property
 and keeps the official binary, PCK, and GDExtension on the same release. The
 session skips persisted update packs because an upstream PCK would replace the
-Wolf Gamescope patches independently of the container image.
+Wolf-patched PCK internals independently of the container image.
 
 The image also installs the `Wolf Desktop Input` plugin. For generic Moonlight
 controllers it translates `Start + Select` into a virtual Guide button. Releasing
@@ -246,11 +250,10 @@ is written to the live InputPlumber composite captured from the device-added
 signal, even if OpenGamepadUI's local device cache is temporarily empty or
 already reports that mode. The plugin reads the live D-Bus property back, so a
 silently denied route change is reported as a failure instead of success.
-Twenty-five additional tests validate the chord, route, app-transition policy,
+Thirty-six tests validate the chord, route, app-transition policy,
 profile serialization, authorization failure, and desktop profile. The plugin
-registers its procedural
-Quick Bar page with an explicit title, avoiding OpenGamepadUI
-0.46.0's unsafe legacy `SectionLabel` lookup.
+registers its procedural Quick Bar page with an explicit title, avoiding
+OpenGamepadUI 0.46.0's unsafe legacy `SectionLabel` lookup.
 
 The session also records correlated InputPlumber properties, D-Bus signals,
 relevant source/target evdev events, and X11 pointer changes in
